@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <noscript class="noscript-banner">Token Furnace 3000 needs JavaScript enabled to spin the reels.</noscript>
+
   <main class="app-shell">
     <header class="top-banner">
       <div class="banner-copy">
@@ -20,7 +22,9 @@
 
       <aside class="quick-guide" aria-label="How to play">
         <p class="mini-label">How to play</p>
-        <p class="guide-text">Each spin costs 3 tokens. Match symbols to win. Every 5 spins, the machine gives you a bonus pack.</p>
+        <p class="guide-text">
+          Each spin costs 3 tokens. Match symbols to win. Every 5 spins, the machine gives you a bonus pack.
+        </p>
       </aside>
     </header>
 
@@ -35,7 +39,7 @@
 
       <div class="machine-body">
         <div class="feedback-row">
-          <div class="feedback-pill ready" id="feedbackPill">Ready to spin</div>
+          <div class="feedback-pill ready" id="feedbackPill" aria-live="polite">Ready to spin</div>
 
           <div class="bonus-cluster" aria-live="polite">
             <div class="bonus-copy">
@@ -59,7 +63,7 @@
           <button class="secondary-button" id="cashOutButton" type="button">Trade Tokens For Slides</button>
         </div>
 
-        <p class="machine-status" id="statusLine">
+        <p class="machine-status" id="statusLine" role="status" aria-live="polite">
           Machine warmed up. Spin whenever you're ready.
         </p>
 
@@ -122,6 +126,6 @@
     <div class="toast"></div>
   </template>
 
-  <script src="script.js"></script>
+  <script type="module" src="script.js"></script>
 </body>
 </html>

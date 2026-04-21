@@ -2,7 +2,6 @@
   --bg-top: #16213e;
   --bg-mid: #0f4c75;
   --bg-bottom: #ffd166;
-  --panel-dark: #1e2348;
   --panel-light: #fff7dc;
   --ink: #1d1733;
   --soft-ink: rgba(29, 23, 51, 0.72);
@@ -10,7 +9,6 @@
   --gold: #ffc94a;
   --orange: #ff8c42;
   --green: #53d86a;
-  --red: #ff5d73;
   --blue: #44c8f5;
   --shadow: rgba(8, 15, 35, 0.28);
 }
@@ -40,6 +38,15 @@ body::before {
     linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
   background-size: 22px 22px;
   opacity: 0.2;
+}
+
+.noscript-banner {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  background: #fff4bf;
+  color: var(--ink);
+  text-align: center;
+  font-weight: 700;
 }
 
 .app-shell {
@@ -243,8 +250,7 @@ h1 {
   place-items: center;
   padding: 1rem;
   border-radius: 28px;
-  background:
-    linear-gradient(180deg, #fffdf6 0%, #ffe8aa 100%);
+  background: linear-gradient(180deg, #fffdf6 0%, #ffe8aa 100%);
   border: 4px solid rgba(255, 201, 74, 0.9);
   box-shadow:
     inset 0 -10px 0 rgba(34, 35, 55, 0.1),
@@ -300,6 +306,12 @@ h1 {
 .spin-button:focus-visible,
 .secondary-button:focus-visible {
   transform: translateY(-2px);
+}
+
+.spin-button:focus-visible,
+.secondary-button:focus-visible {
+  outline: 3px solid var(--cream);
+  outline-offset: 3px;
 }
 
 .spin-button:disabled,
@@ -447,5 +459,16 @@ h1 {
 
   .reel-window {
     min-height: 9rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -1,287 +1,435 @@
-const symbols = [
-  "PROMPT",
-  "GPU",
-  "HYPE",
-  "BOT",
-  "PIVOT",
-  "SLIDE",
-  "VIBE",
-  "TOKEN",
-];
+import {
+  DEFAULT_GAME_CONFIG,
+  SLOT_SYMBOLS,
+  canAffordSpin,
+  createInitialGameState,
+  finishSpin,
+  getMoodText,
+  resolveCashOut,
+  startSpin,
+} from './game-logic.js';
 
-const spinCost = 3;
-const pityRefill = 12;
-const bonusThreshold = 5;
-const bonusReward = 8;
+const REEL_SPIN_DURATIONS_MS = Object.freeze([700, 920, 1140]);
+const REEL_TICK_INTERVAL_MS = 90;
+const TOAST_DURATION_MS = 1800;
+const PANEL_EFFECT_DURATION_MS = 550;
 
-const state = {
-  wallet: 30,
-  spent: 0,
-  won: 0,
-  streak: 0,
-  spins: 0,
-  bonusProgress: 0,
-  lastPayout: 0,
-  isSpinning: false,
-  feedbackKind: "ready",
-  feedbackText: "Ready to spin",
-};
+/**
+ * @typedef {Object} AppElements
+ * @property {HTMLElement[]} reelSymbols
+ * @property {HTMLElement} walletCount
+ * @property {HTMLElement} spentCount
+ * @property {HTMLElement} wonCount
+ * @property {HTMLElement} streakCount
+ * @property {HTMLElement} spinCount
+ * @property {HTMLElement} lastPayout
+ * @property {HTMLElement} moodText
+ * @property {HTMLElement} statusLine
+ * @property {HTMLButtonElement} spinButton
+ * @property {HTMLButtonElement} cashOutButton
+ * @property {HTMLElement} machinePanel
+ * @property {HTMLTemplateElement} toastTemplate
+ * @property {HTMLElement} toastStack
+ * @property {HTMLElement} bonusText
+ * @property {HTMLElement} bonusFill
+ * @property {HTMLElement} feedbackPill
+ * @property {string[]} symbolPool
+ */
 
-const reelElements = [
-  document.querySelector("#reel0"),
-  document.querySelector("#reel1"),
-  document.querySelector("#reel2"),
-];
+let gameState = createInitialGameState();
 
-const walletCount = document.querySelector("#walletCount");
-const spentCount = document.querySelector("#spentCount");
-const wonCount = document.querySelector("#wonCount");
-const streakCount = document.querySelector("#streakCount");
-const spinCount = document.querySelector("#spinCount");
-const lastPayout = document.querySelector("#lastPayout");
-const moodText = document.querySelector("#moodText");
-const statusLine = document.querySelector("#statusLine");
-const spinButton = document.querySelector("#spinButton");
-const cashOutButton = document.querySelector("#cashOutButton");
-const machinePanel = document.querySelector(".machine-panel");
-const toastTemplate = document.querySelector("#toastTemplate");
-const toastStack = document.querySelector("#toastStack");
-const bonusText = document.querySelector("#bonusText");
-const bonusFill = document.querySelector("#bonusFill");
-const feedbackPill = document.querySelector("#feedbackPill");
+initializeApp();
 
-function randomSymbol() {
-  return symbols[Math.floor(Math.random() * symbols.length)];
+/**
+ * Start the browser app when the DOM is ready.
+ *
+ * @returns {void}
+ */
+function initializeApp() {
+  try {
+    const elements = createAppElements();
+    attachEventListeners(elements);
+    renderGameState(gameState, elements);
+  } catch (error) {
+    console.error('Unable to initialize the slot machine UI.', error);
+  }
 }
 
-function render() {
-  walletCount.textContent = String(state.wallet);
-  spentCount.textContent = String(state.spent);
-  wonCount.textContent = String(state.won);
-  streakCount.textContent = `${state.streak} ${state.streak === 1 ? "win" : "wins"}`;
-  spinCount.textContent = String(state.spins);
-  lastPayout.textContent = `${state.lastPayout} tokens`;
-  moodText.textContent = getMood();
-  feedbackPill.textContent = state.feedbackText;
-  feedbackPill.className = `feedback-pill ${state.feedbackKind}`;
-  bonusText.textContent = `${state.bonusProgress} / ${bonusThreshold} spins`;
-  bonusFill.style.width = `${(state.bonusProgress / bonusThreshold) * 100}%`;
-  spinButton.disabled = state.isSpinning || state.wallet < spinCost;
-  cashOutButton.disabled = state.isSpinning;
+/**
+ * Look up and validate the DOM elements used by the app.
+ *
+ * @returns {AppElements}
+ */
+function createAppElements() {
+  return {
+    reelSymbols: [
+      getRequiredHtmlElement('#reel0'),
+      getRequiredHtmlElement('#reel1'),
+      getRequiredHtmlElement('#reel2'),
+    ],
+    walletCount: getRequiredHtmlElement('#walletCount'),
+    spentCount: getRequiredHtmlElement('#spentCount'),
+    wonCount: getRequiredHtmlElement('#wonCount'),
+    streakCount: getRequiredHtmlElement('#streakCount'),
+    spinCount: getRequiredHtmlElement('#spinCount'),
+    lastPayout: getRequiredHtmlElement('#lastPayout'),
+    moodText: getRequiredHtmlElement('#moodText'),
+    statusLine: getRequiredHtmlElement('#statusLine'),
+    spinButton: getRequiredButton('#spinButton'),
+    cashOutButton: getRequiredButton('#cashOutButton'),
+    machinePanel: getRequiredHtmlElement('.machine-panel'),
+    toastTemplate: getRequiredTemplate('#toastTemplate'),
+    toastStack: getRequiredHtmlElement('#toastStack'),
+    bonusText: getRequiredHtmlElement('#bonusText'),
+    bonusFill: getRequiredHtmlElement('#bonusFill'),
+    feedbackPill: getRequiredHtmlElement('#feedbackPill'),
+    symbolPool: [...SLOT_SYMBOLS],
+  };
 }
 
-function getMood() {
-  if (state.wallet <= spinCost) {
-    return "Almost snack-break broke";
+/**
+ * Wire button click handlers.
+ *
+ * @param {AppElements} elements
+ * @returns {void}
+ */
+function attachEventListeners(elements) {
+  elements.spinButton.addEventListener('click', () => {
+    void handleSpinClick(elements);
+  });
+
+  elements.cashOutButton.addEventListener('click', () => {
+    handleCashOutClick(elements);
+  });
+}
+
+/**
+ * Render the current state into the DOM.
+ *
+ * @param {ReturnType<typeof createInitialGameState>} state
+ * @param {AppElements} elements
+ * @returns {void}
+ */
+function renderGameState(state, elements) {
+  elements.walletCount.textContent = String(state.wallet);
+  elements.spentCount.textContent = String(state.spent);
+  elements.wonCount.textContent = String(state.won);
+  elements.streakCount.textContent = `${state.streak} ${state.streak === 1 ? 'win' : 'wins'}`;
+  elements.spinCount.textContent = String(state.spins);
+  elements.lastPayout.textContent = `${state.lastPayout} tokens`;
+  elements.moodText.textContent = getMoodText(state, DEFAULT_GAME_CONFIG);
+  elements.feedbackPill.textContent = state.feedbackText;
+  elements.feedbackPill.className = `feedback-pill ${state.feedbackKind}`;
+  elements.bonusText.textContent = `${state.bonusProgress} / ${DEFAULT_GAME_CONFIG.bonusThreshold} spins`;
+  elements.bonusFill.style.width = `${(state.bonusProgress / DEFAULT_GAME_CONFIG.bonusThreshold) * 100}%`;
+  elements.spinButton.disabled = state.isSpinning || !canAffordSpin(state.wallet, DEFAULT_GAME_CONFIG);
+  elements.cashOutButton.disabled = state.isSpinning;
+}
+
+/**
+ * Handle the spin button and recover cleanly if animation or DOM work fails.
+ *
+ * @param {AppElements} elements
+ * @returns {Promise<void>}
+ */
+async function handleSpinClick(elements) {
+  if (gameState.isSpinning || !canAffordSpin(gameState.wallet, DEFAULT_GAME_CONFIG)) {
+    return;
   }
 
-  if (state.streak >= 3) {
-    return "On a friendly heater";
+  const previousState = gameState;
+
+  try {
+    const paidSpinState = startSpin(gameState, DEFAULT_GAME_CONFIG);
+
+    gameState = {
+      ...paidSpinState,
+      isSpinning: true,
+      feedbackKind: 'spinning',
+      feedbackText: 'Spinning...',
+    };
+
+    setStatusMessage(elements, 'The reels are warming up.');
+    renderGameState(gameState, elements);
+
+    const reelSymbols = await spinAllReels(elements);
+    const resolution = finishSpin(gameState, reelSymbols, DEFAULT_GAME_CONFIG);
+
+    gameState = {
+      ...resolution.nextState,
+      feedbackKind: getFeedbackKindForSpin(resolution),
+      feedbackText: getFeedbackTextForSpin(resolution),
+    };
+
+    playSpinEffects(resolution, elements);
+    setStatusMessage(elements, resolution.statusMessage);
+  } catch (error) {
+    console.error('The spin action failed.', error);
+    gameState = {
+      ...previousState,
+      isSpinning: false,
+      feedbackKind: 'loss',
+      feedbackText: 'Spin failed',
+    };
+    setStatusMessage(elements, 'The machine jammed for a second. Please try again.');
   }
 
-  if (state.won > state.spent) {
-    return "Doing surprisingly well";
+  renderGameState(gameState, elements);
+}
+
+/**
+ * Handle the slide-deck cash-out button.
+ *
+ * @param {AppElements} elements
+ * @returns {void}
+ */
+function handleCashOutClick(elements) {
+  if (gameState.isSpinning) {
+    return;
   }
 
-  if (state.spent - state.won > 12) {
-    return "Still having fun, probably";
+  const resolution = resolveCashOut(gameState, DEFAULT_GAME_CONFIG);
+
+  gameState = {
+    ...resolution.nextState,
+    feedbackKind: resolution.tokensRemoved > 0 ? 'loss' : 'ready',
+    feedbackText: resolution.tokensRemoved > 0 ? 'Slides acquired' : 'Wallet empty',
+  };
+
+  if (resolution.tokensRemoved > 0) {
+    flashMachinePanel(elements.machinePanel, 'loss-flash');
+    triggerVibration(20);
+    queueToast(elements, `-${resolution.tokensRemoved} tokens for slides`);
   }
 
-  return "Easygoing";
+  if (resolution.pityRefillAwarded > 0) {
+    queueToast(elements, `Refill +${resolution.pityRefillAwarded} tokens`);
+  }
+
+  setStatusMessage(elements, resolution.statusMessage);
+  renderGameState(gameState, elements);
 }
 
-function setStatus(message) {
-  statusLine.textContent = message;
+/**
+ * Animate all reels and return their final symbols.
+ *
+ * @param {AppElements} elements
+ * @returns {Promise<string[]>}
+ */
+function spinAllReels(elements) {
+  return Promise.all(
+    elements.reelSymbols.map((element, index) =>
+      animateReelSymbol(element, REEL_SPIN_DURATIONS_MS[index], elements.symbolPool)
+    )
+  );
 }
 
-function setFeedback(kind, text) {
-  state.feedbackKind = kind;
-  state.feedbackText = text;
+/**
+ * Animate a single reel until it lands on a final symbol.
+ *
+ * @param {HTMLElement} reelElement
+ * @param {number} durationMs
+ * @param {string[]} symbolPool
+ * @returns {Promise<string>}
+ */
+function animateReelSymbol(reelElement, durationMs, symbolPool) {
+  reelElement.classList.add('spinning');
+
+  const timerId = window.setInterval(() => {
+    reelElement.textContent = pickRandomSymbol(symbolPool);
+  }, REEL_TICK_INTERVAL_MS);
+
+  return new Promise((resolve) => {
+    window.setTimeout(() => {
+      window.clearInterval(timerId);
+      reelElement.classList.remove('spinning');
+      const finalSymbol = pickRandomSymbol(symbolPool);
+      reelElement.textContent = finalSymbol;
+      resolve(finalSymbol);
+    }, durationMs);
+  });
 }
 
-function pulsePanel(className) {
-  machinePanel.classList.remove("win-flash", "loss-flash");
-  machinePanel.classList.add(className);
-  window.setTimeout(() => {
-    machinePanel.classList.remove(className);
-  }, 550);
+/**
+ * Apply effects after a completed spin.
+ *
+ * @param {import('./game-logic.js').SpinResolution} resolution
+ * @param {AppElements} elements
+ * @returns {void}
+ */
+function playSpinEffects(resolution, elements) {
+  if (resolution.outcome.payout > 0) {
+    flashMachinePanel(elements.machinePanel, 'win-flash');
+    triggerVibration([30, 20, 50]);
+    queueToast(elements, `+${resolution.outcome.payout} tokens`);
+  } else {
+    flashMachinePanel(elements.machinePanel, 'loss-flash');
+    triggerVibration(25);
+  }
+
+  if (resolution.bonusAwarded > 0) {
+    queueToast(elements, `Bonus +${resolution.bonusAwarded} tokens`);
+  }
+
+  if (resolution.pityRefillAwarded > 0) {
+    queueToast(elements, `Comeback +${resolution.pityRefillAwarded} tokens`);
+  }
 }
 
-function showToast(message) {
-  const toast = toastTemplate.content.firstElementChild.cloneNode(true);
+/**
+ * Choose the feedback style for the status pill after a spin.
+ *
+ * @param {import('./game-logic.js').SpinResolution} resolution
+ * @returns {'win' | 'loss' | 'bonus'}
+ */
+function getFeedbackKindForSpin(resolution) {
+  if (resolution.bonusAwarded > 0) {
+    return 'bonus';
+  }
+
+  return resolution.outcome.kind;
+}
+
+/**
+ * Choose the short feedback label for the status pill after a spin.
+ *
+ * @param {import('./game-logic.js').SpinResolution} resolution
+ * @returns {string}
+ */
+function getFeedbackTextForSpin(resolution) {
+  if (resolution.bonusAwarded > 0) {
+    return `Bonus +${resolution.bonusAwarded}`;
+  }
+
+  if (resolution.outcome.payout > 0) {
+    return `Win +${resolution.outcome.payout}`;
+  }
+
+  return 'Try again';
+}
+
+/**
+ * Update the main status line.
+ *
+ * @param {AppElements} elements
+ * @param {string} message
+ * @returns {void}
+ */
+function setStatusMessage(elements, message) {
+  elements.statusLine.textContent = message;
+}
+
+/**
+ * Show a short toast message if the template is available.
+ *
+ * @param {AppElements} elements
+ * @param {string} message
+ * @returns {void}
+ */
+function queueToast(elements, message) {
+  const templateChild = elements.toastTemplate.content.firstElementChild;
+
+  if (!(templateChild instanceof HTMLElement)) {
+    return;
+  }
+
+  const toast = templateChild.cloneNode(true);
+
+  if (!(toast instanceof HTMLElement)) {
+    return;
+  }
+
   toast.textContent = message;
-  toastStack.appendChild(toast);
+  elements.toastStack.appendChild(toast);
 
   window.setTimeout(() => {
     toast.remove();
-  }, 1800);
+  }, TOAST_DURATION_MS);
 }
 
-function vibrate(pattern) {
-  if ("vibrate" in navigator) {
+/**
+ * Flash the machine panel after a win or loss.
+ *
+ * @param {HTMLElement} panel
+ * @param {'win-flash' | 'loss-flash'} effectClass
+ * @returns {void}
+ */
+function flashMachinePanel(panel, effectClass) {
+  panel.classList.remove('win-flash', 'loss-flash');
+  panel.classList.add(effectClass);
+
+  window.setTimeout(() => {
+    panel.classList.remove(effectClass);
+  }, PANEL_EFFECT_DURATION_MS);
+}
+
+/**
+ * Trigger device vibration when available.
+ *
+ * @param {number | number[]} pattern
+ * @returns {void}
+ */
+function triggerVibration(pattern) {
+  if ('vibrate' in navigator) {
     navigator.vibrate(pattern);
   }
 }
 
-function evaluateSpin(result) {
-  const counts = result.reduce((map, symbol) => {
-    map[symbol] = (map[symbol] || 0) + 1;
-    return map;
-  }, {});
-
-  const values = Object.values(counts).sort((a, b) => b - a);
-  const tripleSymbol = Object.keys(counts).find((symbol) => counts[symbol] === 3);
-
-  if (tripleSymbol === "BOT") {
-    return {
-      payout: 30,
-      message: "Three BOTs. The machine says that counts as fully automated fun.",
-      kind: "win",
-    };
-  }
-
-  if (values[0] === 3) {
-    return {
-      payout: 18,
-      message: `Triple ${tripleSymbol}. Nice hit.`,
-      kind: "win",
-    };
-  }
-
-  if (values[0] === 2) {
-    const pairedSymbol = Object.keys(counts).find((symbol) => counts[symbol] === 2);
-    return {
-      payout: 6,
-      message: `Pair of ${pairedSymbol}. Small win, solid vibes.`,
-      kind: "win",
-    };
-  }
-
-  return {
-    payout: 0,
-    message: "No match this time. The machine says it is still learning.",
-    kind: "loss",
-  };
+/**
+ * Pick a random reel symbol.
+ *
+ * @param {string[]} symbolPool
+ * @returns {string}
+ */
+function pickRandomSymbol(symbolPool) {
+  const randomIndex = Math.floor(Math.random() * symbolPool.length);
+  return symbolPool[randomIndex];
 }
 
-function animateReel(element, duration) {
-  element.classList.add("spinning");
+/**
+ * Find a required HTML element and fail loudly when it is missing.
+ *
+ * @param {string} selector
+ * @returns {HTMLElement}
+ */
+function getRequiredHtmlElement(selector) {
+  const element = document.querySelector(selector);
 
-  const timer = window.setInterval(() => {
-    element.textContent = randomSymbol();
-  }, 90);
+  if (!(element instanceof HTMLElement)) {
+    throw new Error(`Missing required element: ${selector}`);
+  }
 
-  return new Promise((resolve) => {
-    window.setTimeout(() => {
-      window.clearInterval(timer);
-      element.classList.remove("spinning");
-      const finalSymbol = randomSymbol();
-      element.textContent = finalSymbol;
-      resolve(finalSymbol);
-    }, duration);
-  });
+  return element;
 }
 
-function awardSpinBonus() {
-  state.bonusProgress += 1;
+/**
+ * Find a required button element.
+ *
+ * @param {string} selector
+ * @returns {HTMLButtonElement}
+ */
+function getRequiredButton(selector) {
+  const element = document.querySelector(selector);
 
-  if (state.bonusProgress < bonusThreshold) {
-    return null;
+  if (!(element instanceof HTMLButtonElement)) {
+    throw new Error(`Missing required button: ${selector}`);
   }
 
-  state.bonusProgress = 0;
-  state.wallet += bonusReward;
-
-  return {
-    payout: bonusReward,
-    message: `Bonus unlocked: +${bonusReward} tokens for sticking with it.`,
-  };
+  return element;
 }
 
-async function handleSpin() {
-  if (state.isSpinning || state.wallet < spinCost) {
-    return;
+/**
+ * Find a required template element.
+ *
+ * @param {string} selector
+ * @returns {HTMLTemplateElement}
+ */
+function getRequiredTemplate(selector) {
+  const element = document.querySelector(selector);
+
+  if (!(element instanceof HTMLTemplateElement)) {
+    throw new Error(`Missing required template: ${selector}`);
   }
 
-  state.isSpinning = true;
-  state.wallet -= spinCost;
-  state.spent += spinCost;
-  state.lastPayout = 0;
-  setFeedback("spinning", "Spinning...");
-  setStatus("The reels are warming up.");
-  render();
-
-  const result = await Promise.all(
-    reelElements.map((element, index) => animateReel(element, 700 + index * 220))
-  );
-
-  state.spins += 1;
-
-  const outcome = evaluateSpin(result);
-  const spinBonus = awardSpinBonus();
-
-  state.lastPayout = outcome.payout + (spinBonus ? spinBonus.payout : 0);
-  state.wallet += outcome.payout;
-  state.won += outcome.payout;
-  state.streak = outcome.payout > 0 ? state.streak + 1 : 0;
-
-  let statusMessage = outcome.message;
-
-  if (outcome.payout > 0) {
-    pulsePanel("win-flash");
-    vibrate([30, 20, 50]);
-    setFeedback("win", `Win +${outcome.payout}`);
-    showToast(`+${outcome.payout} tokens`);
-  } else {
-    pulsePanel("loss-flash");
-    vibrate(25);
-    setFeedback("loss", "Try again");
-  }
-
-  if (spinBonus) {
-    state.won += spinBonus.payout;
-    setFeedback("bonus", `Bonus +${spinBonus.payout}`);
-    showToast(`Bonus +${spinBonus.payout} tokens`);
-    statusMessage = `${statusMessage} ${spinBonus.message}`;
-  }
-
-  if (state.wallet < spinCost) {
-    state.wallet += pityRefill;
-    showToast(`Comeback +${pityRefill} tokens`);
-    statusMessage = `${statusMessage} The machine spotted the low balance and tossed in ${pityRefill} comeback tokens.`;
-  }
-
-  setStatus(statusMessage);
-  state.isSpinning = false;
-  render();
+  return element;
 }
-
-function handleCashOut() {
-  const slideValue = Math.max(1, Math.floor(state.wallet / 2));
-  state.wallet = Math.max(0, state.wallet - slideValue);
-  state.spent += slideValue;
-  state.streak = 0;
-  state.lastPayout = 0;
-  setFeedback("loss", "Slides acquired");
-  setStatus(
-    `You traded ${slideValue} tokens for a cheerful slide deck about helpful automation.`
-  );
-  pulsePanel("loss-flash");
-  vibrate(20);
-  showToast(`-${slideValue} tokens for slides`);
-
-  if (state.wallet < spinCost) {
-    state.wallet += pityRefill;
-    showToast(`Refill +${pityRefill} tokens`);
-    setStatus(
-      `You traded ${slideValue} tokens for a cheerful slide deck about helpful automation. The machine kindly added ${pityRefill} comeback tokens so the fun can continue.`
-    );
-  }
-
-  render();
-}
-
-spinButton.addEventListener("click", handleSpin);
-cashOutButton.addEventListener("click", handleCashOut);
-
-render();
