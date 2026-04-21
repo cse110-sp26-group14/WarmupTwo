@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Token Furnace 3000</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <section class="hero-panel">
+      <p class="eyebrow">Satirical AI Finance Simulator</p>
+      <h1>Token Furnace 3000</h1>
+      <p class="intro">
+        Spin the reels, win synthetic tokens, and immediately burn them on premium
+        nonsense. The future is efficient, expensive, and strangely loud.
+      </p>
+
+      <div class="scoreboard" aria-label="Token scoreboard">
+        <article class="stat-card">
+          <span class="stat-label">Wallet</span>
+          <strong class="stat-value" id="walletCount">30</strong>
+          <span class="stat-note">Usable tokens</span>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Spent</span>
+          <strong class="stat-value" id="spentCount">0</strong>
+          <span class="stat-note">Lost to the machine</span>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Won</span>
+          <strong class="stat-value" id="wonCount">0</strong>
+          <span class="stat-note">Invented value</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="machine-panel" aria-labelledby="machineTitle">
+      <div class="machine-topper">
+        <div>
+          <p class="mini-label">Current Product</p>
+          <h2 id="machineTitle">Enterprise Hype Extractor</h2>
+        </div>
+        <div class="price-tag">Spin Cost: 3 tokens</div>
+      </div>
+
+      <div class="machine-body">
+        <div class="reels" aria-live="polite">
+          <div class="reel-window"><span class="reel-symbol" id="reel0">PROMPT</span></div>
+          <div class="reel-window"><span class="reel-symbol" id="reel1">GPU</span></div>
+          <div class="reel-window"><span class="reel-symbol" id="reel2">HYPE</span></div>
+        </div>
+
+        <div class="controls">
+          <button class="spin-button" id="spinButton" type="button">Spin The Machine</button>
+          <button class="secondary-button" id="cashOutButton" type="button">Cash Out Into Deck Slides</button>
+        </div>
+
+        <p class="machine-status" id="statusLine">
+          Deposit complete. The machine is ready to convert confidence into invoices.
+        </p>
+
+        <div class="ticker-grid">
+          <article class="ticker-card">
+            <span class="ticker-label">Last payout</span>
+            <strong id="lastPayout">0 tokens</strong>
+          </article>
+          <article class="ticker-card">
+            <span class="ticker-label">Hot streak</span>
+            <strong id="streakCount">0 wins</strong>
+          </article>
+          <article class="ticker-card">
+            <span class="ticker-label">Mood</span>
+            <strong id="moodText">Cautiously overfunded</strong>
+          </article>
+        </div>
+      </div>
+
+      <aside class="rules-panel">
+        <h3>Tokenomics</h3>
+        <ul>
+          <li>Match 2 symbols: +6 tokens</li>
+          <li>Match 3 symbols: +18 tokens</li>
+          <li>Three BOTs: jackpot +30 tokens</li>
+          <li>Wallet empty: the machine pitches a pivot and refills 12 pity tokens</li>
+        </ul>
+      </aside>
+    </section>
+  </main>
+
+  <template id="toastTemplate">
+    <div class="toast"></div>
+  </template>
+
+  <script src="script.js"></script>
+</body>
+</html>
