@@ -8,43 +8,46 @@
 </head>
 <body>
   <main class="app-shell">
-    <section class="hero-panel">
-      <p class="eyebrow">Satirical AI Finance Simulator</p>
-      <h1>Token Furnace 3000</h1>
-      <p class="intro">
-        Spin the reels, win synthetic tokens, and immediately burn them on premium
-        nonsense. The future is efficient, expensive, and strangely loud.
-      </p>
-
-      <div class="scoreboard" aria-label="Token scoreboard">
-        <article class="stat-card">
-          <span class="stat-label">Wallet</span>
-          <strong class="stat-value" id="walletCount">30</strong>
-          <span class="stat-note">Usable tokens</span>
-        </article>
-        <article class="stat-card">
-          <span class="stat-label">Spent</span>
-          <strong class="stat-value" id="spentCount">0</strong>
-          <span class="stat-note">Lost to the machine</span>
-        </article>
-        <article class="stat-card">
-          <span class="stat-label">Won</span>
-          <strong class="stat-value" id="wonCount">0</strong>
-          <span class="stat-note">Invented value</span>
-        </article>
+    <header class="top-banner">
+      <div class="banner-copy">
+        <p class="eyebrow">Lightly Silly AI Token Arcade</p>
+        <h1>Token Furnace 3000</h1>
+        <p class="intro">
+          Spin the reels, collect tokens, and enjoy a few gentle jokes about AI hype.
+          It is colorful, low-stakes, and only slightly overconfident.
+        </p>
       </div>
-    </section>
+
+      <aside class="quick-guide" aria-label="How to play">
+        <p class="mini-label">How to play</p>
+        <p class="guide-text">Each spin costs 3 tokens. Match symbols to win. Every 5 spins, the machine gives you a bonus pack.</p>
+      </aside>
+    </header>
 
     <section class="machine-panel" aria-labelledby="machineTitle">
       <div class="machine-topper">
         <div>
-          <p class="mini-label">Current Product</p>
-          <h2 id="machineTitle">Enterprise Hype Extractor</h2>
+          <p class="mini-label">Center Stage</p>
+          <h2 id="machineTitle">Friendly Hype Spinner</h2>
         </div>
-        <div class="price-tag">Spin Cost: 3 tokens</div>
+        <div class="price-tag">3 tokens per spin</div>
       </div>
 
       <div class="machine-body">
+        <div class="feedback-row">
+          <div class="feedback-pill ready" id="feedbackPill">Ready to spin</div>
+
+          <div class="bonus-cluster" aria-live="polite">
+            <div class="bonus-copy">
+              <span class="bonus-label">Bonus meter</span>
+              <strong id="bonusText">0 / 5 spins</strong>
+            </div>
+            <div class="bonus-track" aria-hidden="true">
+              <div class="bonus-fill" id="bonusFill"></div>
+            </div>
+          </div>
+        </div>
+
         <div class="reels" aria-live="polite">
           <div class="reel-window"><span class="reel-symbol" id="reel0">PROMPT</span></div>
           <div class="reel-window"><span class="reel-symbol" id="reel1">GPU</span></div>
@@ -52,12 +55,12 @@
         </div>
 
         <div class="controls">
-          <button class="spin-button" id="spinButton" type="button">Spin The Machine</button>
-          <button class="secondary-button" id="cashOutButton" type="button">Cash Out Into Deck Slides</button>
+          <button class="spin-button" id="spinButton" type="button">Spin</button>
+          <button class="secondary-button" id="cashOutButton" type="button">Trade Tokens For Slides</button>
         </div>
 
         <p class="machine-status" id="statusLine">
-          Deposit complete. The machine is ready to convert confidence into invoices.
+          Machine warmed up. Spin whenever you're ready.
         </p>
 
         <div class="ticker-grid">
@@ -70,23 +73,50 @@
             <strong id="streakCount">0 wins</strong>
           </article>
           <article class="ticker-card">
+            <span class="ticker-label">Spins</span>
+            <strong id="spinCount">0</strong>
+          </article>
+          <article class="ticker-card">
             <span class="ticker-label">Mood</span>
-            <strong id="moodText">Cautiously overfunded</strong>
+            <strong id="moodText">Easygoing</strong>
           </article>
         </div>
       </div>
+    </section>
+
+    <section class="info-grid">
+      <div class="scoreboard" aria-label="Token scoreboard">
+        <article class="stat-card">
+          <span class="stat-label">Wallet</span>
+          <strong class="stat-value" id="walletCount">30</strong>
+          <span class="stat-note">Tokens ready to use</span>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Won</span>
+          <strong class="stat-value" id="wonCount">0</strong>
+          <span class="stat-note">Tokens earned from hits</span>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Spent</span>
+          <strong class="stat-value" id="spentCount">0</strong>
+          <span class="stat-note">Tokens fed back into the machine</span>
+        </article>
+      </div>
 
       <aside class="rules-panel">
-        <h3>Tokenomics</h3>
+        <h3>Simple Rules</h3>
         <ul>
           <li>Match 2 symbols: +6 tokens</li>
           <li>Match 3 symbols: +18 tokens</li>
           <li>Three BOTs: jackpot +30 tokens</li>
-          <li>Wallet empty: the machine pitches a pivot and refills 12 pity tokens</li>
+          <li>Every 5 spins: bonus +8 tokens</li>
+          <li>If your wallet gets too low, the machine tosses you 12 comeback tokens</li>
         </ul>
       </aside>
     </section>
   </main>
+
+  <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
 
   <template id="toastTemplate">
     <div class="toast"></div>
