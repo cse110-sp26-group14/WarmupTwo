@@ -39,19 +39,14 @@
       </div>
 
       <div class="cabinet-grid">
-        <aside class="cabinet-side theme-panel">
-          <section class="side-card quick-guide" aria-label="How to play">
-            <p class="mini-label">How to play</p>
-            <p class="guide-text" id="guideText">
-              Pick a theme, spin the machine, and climb the vault meter. It takes 24 spins to cash the big bonus, but some bad combinations can push you backward.
-            </p>
-          </section>
-          <section class="side-card mechanics-panel" aria-label="Mechanics">
-            <p class="mini-label">Mechanics</p>
-            <p class="guide-text">
-              Trading tokens for slides means the machine converts half of your current wallet into a fake presentation detour, resets your hot streak, and gives you a small comeback refund if your wallet gets too low to keep spinning.
-            </p>
-          </section>
+        <aside class="cabinet-side left-rail">
+          <button class="help-launcher" id="helpLauncher" type="button" aria-controls="helpModal" aria-expanded="false">
+            <span class="help-launcher-icon" aria-hidden="true">&#10067;</span>
+            <span class="help-launcher-copy">
+              <span class="mini-label">Guide</span>
+              <strong>How to Play + Mechanics</strong>
+            </span>
+          </button>
 
           <section class="side-card theme-picker" aria-label="Theme selector">
             <p class="mini-label">Pick a setting</p>
@@ -63,6 +58,18 @@
             <p class="theme-flavor" id="themeFlavor">
               Lanterns, koi, drums, and a lucky-gate jackpot.
             </p>
+          </section>
+
+          <section class="side-card settings-panel" aria-label="Settings">
+            <p class="mini-label">Settings bar</p>
+            <label class="volume-control" for="volumeSlider">
+              <span>
+                <strong>Volume</strong>
+                <small>Keep the cabinet relaxed or lively.</small>
+              </span>
+              <span class="volume-readout" id="volumeValue">35%</span>
+            </label>
+            <input id="volumeSlider" class="volume-slider" type="range" min="0" max="100" step="1" value="35" aria-label="Game volume">
           </section>
         </aside>
 
@@ -135,10 +142,10 @@
           <section class="side-card rules-panel">
             <h3>Risk Board</h3>
             <ul>
-              <li id="jackpotRule">Three LANTERN icons: jackpot +30 tokens</li>
-              <li id="bonusRule">Every 24 spins: vault +150 tokens</li>
-              <li id="setbackRule">Pair of MASK icons: lose 4 progress</li>
-              <li id="resetRule">Triple MASK icons: reset the vault</li>
+              <li id="jackpotRule"><span class="rule-icon" id="jackpotRuleIcon" aria-hidden="true">&#127922;</span><span class="rule-copy">Three LANTERN icons: jackpot +30 tokens</span></li>
+              <li id="bonusRule"><span class="rule-icon" id="bonusRuleIcon" aria-hidden="true">&#128142;</span><span class="rule-copy">Every 24 spins: vault +150 tokens</span></li>
+              <li id="setbackRule"><span class="rule-icon" id="setbackRuleIcon" aria-hidden="true">&#9888;&#65039;</span><span class="rule-copy">Pair of MASK icons: lose 4 progress</span></li>
+              <li id="resetRule"><span class="rule-icon" id="resetRuleIcon" aria-hidden="true">&#128165;</span><span class="rule-copy">Triple MASK icons: reset the vault</span></li>
             </ul>
           </section>
         </aside>
@@ -160,6 +167,40 @@
       </div>
     </section>
   </main>
+
+  
+  <div class="help-modal" id="helpModal" hidden>
+    <div class="help-modal-backdrop" data-help-close="true"></div>
+    <section class="help-modal-panel" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
+      <header class="help-modal-header">
+        <div class="help-modal-titlewrap">
+          <span class="help-modal-icon" aria-hidden="true">&#10067;</span>
+          <div>
+            <p class="mini-label">Guide</p>
+            <h3 id="helpModalTitle">How to Play + Mechanics</h3>
+          </div>
+        </div>
+        <div class="help-modal-actions">
+          <button class="help-modal-button" id="helpMinimizeButton" type="button">Minimize</button>
+          <button class="help-modal-button" id="helpCloseButton" type="button">Close</button>
+        </div>
+      </header>
+      <div class="help-modal-body">
+        <section>
+          <p class="mini-label">How to play</p>
+          <p class="guide-text" id="guideText">
+            Pick a theme, spin the machine, and climb the vault meter. It takes 24 spins to cash the big bonus, but some bad combinations can push you backward.
+          </p>
+        </section>
+        <section>
+          <p class="mini-label">Mechanics</p>
+          <p class="guide-text">
+            Trading tokens for slides means the machine converts half of your current wallet into a fake presentation detour, resets your hot streak, and gives you a small comeback refund if your wallet gets too low to keep spinning.
+          </p>
+        </section>
+      </div>
+    </section>
+  </div>
 
   <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
 

@@ -14,6 +14,14 @@ const TOAST_DURATION_MS = 1800;
 const PANEL_EFFECT_DURATION_MS = 550;
 const RESULT_OVERLAY_DURATION_MS = 2200;
 const THEME_STORAGE_KEY = 'token-furnace-theme';
+const VOLUME_STORAGE_KEY = 'token-furnace-volume';
+const DEFAULT_VOLUME = 0.35;
+
+const UNIVERSAL_SYMBOLS = Object.freeze([
+  { key: 'CHERRY', label: 'Cherry', icon: '\u{1F352}' },
+  { key: 'DIAMOND', label: 'Diamond', icon: '\u{1F48E}' },
+  { key: 'LUCKY7', label: 'Lucky 7', icon: '7\uFE0F\u20E3' },
+]);
 
 const THEME_AUDIO_LIBRARY = Object.freeze({
   festival: {
@@ -21,21 +29,33 @@ const THEME_AUDIO_LIBRARY = Object.freeze({
     scale: [0, 4, 7, 12],
     waveType: 'triangle',
     accentWaveType: 'sine',
-    ambientPattern: [0, 7, 4, 9],
+    ambientMotifs: [
+      [0, 4, 7, 9, 12, 9, 7, 4],
+      [0, 2, 5, 7, 9, 7, 5, 2],
+      [0, 4, 7, 11, 12, 11, 7, 4],
+    ],
   },
   riviera: {
     baseFrequency: 330,
     scale: [0, 3, 7, 10],
     waveType: 'sine',
     accentWaveType: 'triangle',
-    ambientPattern: [0, 5, 7, 10],
+    ambientMotifs: [
+      [0, 3, 7, 10, 12, 10, 7, 3],
+      [0, 5, 7, 10, 12, 10, 7, 5],
+      [0, 2, 5, 7, 9, 7, 5, 2],
+    ],
   },
   oasis: {
     baseFrequency: 294,
     scale: [0, 2, 5, 9],
     waveType: 'triangle',
     accentWaveType: 'sine',
-    ambientPattern: [0, 3, 7, 12],
+    ambientMotifs: [
+      [0, 2, 5, 9, 12, 9, 5, 2],
+      [0, 3, 7, 10, 12, 10, 7, 3],
+      [0, 5, 7, 9, 12, 14, 12, 9],
+    ],
   },
 });
 
@@ -48,6 +68,7 @@ const THEME_LIBRARY = Object.freeze({
     flavorText: 'Lanterns, koi, drums, and a lucky-gate jackpot.',
     guideText: 'Festival charms fill the reels. Build the vault over 24 spins, but MASK combinations can knock your climb backwards.',
     symbols: [
+      ...UNIVERSAL_SYMBOLS,
       { key: 'LANTERN', label: 'Lantern', icon: '\u{1F3EE}' },
       { key: 'KOI', label: 'Koi', icon: '\u{1F38F}' },
       { key: 'DRUM', label: 'Drum', icon: '\u{1F941}' },
@@ -69,6 +90,7 @@ const THEME_LIBRARY = Object.freeze({
     flavorText: 'Sun-washed tiles, olive branches, and postcard-blue water.',
     guideText: 'Coastal icons fill this cabinet. The vault is rich, but WAVE combinations can wash progress away before it pays out.',
     symbols: [
+      ...UNIVERSAL_SYMBOLS,
       { key: 'OLIVE', label: 'Olive', icon: '\u{1FAD2}' },
       { key: 'TILE', label: 'Tile', icon: '\u{1F537}' },
       { key: 'LEMON', label: 'Lemon', icon: '\u{1F34B}' },
@@ -90,6 +112,7 @@ const THEME_LIBRARY = Object.freeze({
     flavorText: 'Palm shade, lamp glow, and a vault hidden beyond the dunes.',
     guideText: 'Desert icons and warm golds shape this machine. The vault is huge, but MOON combinations can cut or wipe your progress.',
     symbols: [
+      ...UNIVERSAL_SYMBOLS,
       { key: 'PALM', label: 'Palm', icon: '\u{1F334}' },
       { key: 'DUNE', label: 'Dune', icon: '\u{1F3DC}\uFE0F' },
       { key: 'LAMP', label: 'Lamp', icon: '\u{1FA94}' },
@@ -141,6 +164,12 @@ const audioEngine = createAudioEngine();
  * @property {HTMLElement} bonusRule
  * @property {HTMLElement} setbackRule
  * @property {HTMLElement} resetRule
+ * @property {HTMLElement} helpLauncher
+ * @property {HTMLElement} helpModal
+ * @property {HTMLElement} helpMinimizeButton
+ * @property {HTMLElement} helpCloseButton
+ * @property {HTMLInputElement} volumeSlider
+ * @property {HTMLElement} volumeValue
  * @property {HTMLElement} resultOverlay
  * @property {HTMLElement} resultOverlayCard
  * @property {HTMLElement} resultKicker
@@ -160,7 +189,9 @@ initializeApp();
 function initializeApp() {
   try {
     const elements = createAppElements();
+    audioEngine.setVolume(loadStoredVolume());
     applyTheme(loadStoredTheme(), elements, { playAudio: false });
+    syncVolumeUI(elements, loadStoredVolume());
     attachEventListeners(elements);
     renderGameState(gameState, elements);
   } catch (error) {
@@ -202,6 +233,12 @@ function createAppElements() {
     bonusRule: getRequiredHtmlElement('#bonusRule'),
     setbackRule: getRequiredHtmlElement('#setbackRule'),
     resetRule: getRequiredHtmlElement('#resetRule'),
+    helpLauncher: getRequiredButton('#helpLauncher'),
+    helpModal: getRequiredHtmlElement('#helpModal'),
+    helpMinimizeButton: getRequiredButton('#helpMinimizeButton'),
+    helpCloseButton: getRequiredButton('#helpCloseButton'),
+    volumeSlider: getRequiredRangeInput('#volumeSlider'),
+    volumeValue: getRequiredHtmlElement('#volumeValue'),
     resultOverlay: getRequiredHtmlElement('#resultOverlay'),
     resultOverlayCard: getRequiredHtmlElement('#resultOverlayCard'),
     resultKicker: getRequiredHtmlElement('#resultKicker'),
@@ -231,7 +268,33 @@ function attachEventListeners(elements) {
       applyTheme(button.dataset.themeOption || AVAILABLE_THEMES[0], elements, { playAudio: true });
     });
   });
+
+  elements.helpLauncher.addEventListener('click', () => {
+    toggleHelpModal(elements);
+  });
+
+  elements.helpCloseButton.addEventListener('click', () => {
+    closeHelpModal(elements);
+  });
+
+  elements.helpMinimizeButton.addEventListener('click', () => {
+    toggleHelpModalMinimized(elements);
+  });
+
+  elements.helpModal.addEventListener('click', (event) => {
+    if (event.target instanceof HTMLElement && event.target.dataset.helpClose === 'true') {
+      closeHelpModal(elements);
+    }
+  });
+
+  elements.volumeSlider.addEventListener('input', () => {
+    const volume = Number(elements.volumeSlider.value) / 100;
+    audioEngine.setVolume(volume);
+    persistVolume(volume);
+    syncVolumeUI(elements, volume);
+  });
 }
+
 
 function renderGameState(state, elements) {
   const gameConfig = getActiveGameConfig();
@@ -563,7 +626,8 @@ function triggerVibration(pattern) {
 }
 
 function renderReelSymbol(element, symbol) {
-  element.innerHTML = `<span class="symbol-icon" aria-hidden="true">${symbol.icon}</span><span class="symbol-label">${symbol.label}</span>`;
+  element.setAttribute('aria-label', symbol.label);
+  element.innerHTML = `<span class="symbol-icon" aria-hidden="true">${symbol.icon}</span>`;
 }
 
 function pickRandomSymbol(symbolPool) {
@@ -586,10 +650,10 @@ function applyTheme(themeName, elements, options = {}) {
   elements.themeFlavor.textContent = safeTheme.flavorText;
   elements.guideText.textContent = safeTheme.guideText;
   elements.vaultPrize.textContent = `${gameConfig.bonusReward} tokens`;
-  elements.jackpotRule.textContent = `Three ${safeTheme.jackpotSymbol} icons: jackpot +${gameConfig.jackpotPayout} tokens`;
-  elements.bonusRule.textContent = `Every ${gameConfig.bonusThreshold} spins: vault +${gameConfig.bonusReward} tokens`;
-  elements.setbackRule.textContent = `Pair of ${safeTheme.progressDropSymbol} icons: lose ${gameConfig.progressDropAmount} progress`;
-  elements.resetRule.textContent = `Triple ${safeTheme.progressResetSymbol} icons: reset the vault`;
+  elements.jackpotRule.innerHTML = createRiskLine(getThemeSymbol(safeTheme, safeTheme.jackpotSymbol)?.icon || '\u{1F3B0}', `Three ${safeTheme.jackpotSymbol} icons: jackpot +${gameConfig.jackpotPayout} tokens`);
+  elements.bonusRule.innerHTML = createRiskLine('\u{1F48E}', `Every ${gameConfig.bonusThreshold} spins: vault +${gameConfig.bonusReward} tokens`);
+  elements.setbackRule.innerHTML = createRiskLine(getThemeSymbol(safeTheme, safeTheme.progressDropSymbol)?.icon || '\u26A0\uFE0F', `Pair of ${safeTheme.progressDropSymbol} icons: lose ${gameConfig.progressDropAmount} progress`);
+  elements.resetRule.innerHTML = createRiskLine(getThemeSymbol(safeTheme, safeTheme.progressResetSymbol)?.icon || '\u{1F4A5}', `Triple ${safeTheme.progressResetSymbol} icons: reset the vault`);
 
   elements.themeButtons.forEach((button) => {
     button.classList.toggle('is-active', button.dataset.themeOption === safeTheme.key);
@@ -602,6 +666,8 @@ function applyTheme(themeName, elements, options = {}) {
     audioEngine.unlock();
     audioEngine.playThemeChange(safeTheme.key);
   }
+
+  syncVolumeUI(elements, audioEngine.getVolume());
 }
 
 function getActiveGameConfig() {
@@ -615,6 +681,14 @@ function getConfiguredThemeGameConfig(theme) {
     progressDropSymbol: theme.progressDropSymbol,
     progressResetSymbol: theme.progressResetSymbol,
   };
+}
+
+function getThemeSymbol(theme, symbolKey) {
+  return theme.symbols.find((symbol) => symbol.key === symbolKey);
+}
+
+function createRiskLine(icon, text) {
+  return `<span class="rule-icon" aria-hidden="true">${icon}</span><span class="rule-copy">${text}</span>`;
 }
 
 function syncReelSymbolsToTheme(elements, symbols) {
@@ -632,12 +706,39 @@ function loadStoredTheme() {
   }
 }
 
+function loadStoredVolume() {
+  try {
+    const storedVolume = Number(window.localStorage.getItem(VOLUME_STORAGE_KEY));
+    return Number.isFinite(storedVolume) ? clampVolume(storedVolume) : DEFAULT_VOLUME;
+  } catch {
+    return DEFAULT_VOLUME;
+  }
+}
+
 function persistTheme(themeName) {
   try {
     window.localStorage.setItem(THEME_STORAGE_KEY, themeName);
   } catch {
     // Ignore storage failures and keep the in-memory theme.
   }
+}
+
+function persistVolume(volume) {
+  try {
+    window.localStorage.setItem(VOLUME_STORAGE_KEY, String(volume));
+  } catch {
+    // Ignore storage failures and keep the in-memory volume.
+  }
+}
+
+function syncVolumeUI(elements, volume) {
+  const percentage = Math.round(clampVolume(volume) * 100);
+  elements.volumeSlider.value = String(percentage);
+  elements.volumeValue.textContent = `${percentage}%`;
+}
+
+function clampVolume(volume) {
+  return Math.min(1, Math.max(0, volume));
 }
 
 function getThemeButtons() {
@@ -666,6 +767,47 @@ function getRequiredButton(selector) {
   return element;
 }
 
+function getRequiredRangeInput(selector) {
+  const element = document.querySelector(selector);
+
+  if (!(element instanceof HTMLInputElement)) {
+    throw new Error(`Missing required input: ${selector}`);
+  }
+
+  return element;
+}
+
+function openHelpModal(elements) {
+  elements.helpModal.hidden = false;
+  elements.helpModal.classList.remove('is-minimized');
+  elements.helpLauncher.setAttribute('aria-expanded', 'true');
+}
+
+function closeHelpModal(elements) {
+  elements.helpModal.hidden = true;
+  elements.helpModal.classList.remove('is-minimized');
+  elements.helpLauncher.setAttribute('aria-expanded', 'false');
+}
+
+function toggleHelpModal(elements) {
+  if (elements.helpModal.hidden) {
+    openHelpModal(elements);
+    return;
+  }
+
+  closeHelpModal(elements);
+}
+
+function toggleHelpModalMinimized(elements) {
+  if (elements.helpModal.hidden) {
+    openHelpModal(elements);
+    return;
+  }
+
+  elements.helpModal.classList.toggle('is-minimized');
+  elements.helpMinimizeButton.textContent = elements.helpModal.classList.contains('is-minimized') ? 'Expand' : 'Minimize';
+}
+
 /**
  * Creates a lightweight theme-aware audio engine using the Web Audio API.
  * @returns {{
@@ -681,9 +823,13 @@ function getRequiredButton(selector) {
 function createAudioEngine() {
   /** @type {AudioContext | null} */
   let context = null;
+  /** @type {GainNode | null} */
+  let masterGain = null;
   let themeKey = AVAILABLE_THEMES[0];
+  let pendingVolume = DEFAULT_VOLUME;
   let ambientTimerId = null;
   let ambientThemeKey = null;
+  let ambientPhraseIndex = 0;
 
   function ensureContext() {
     if (typeof window.AudioContext === 'undefined' && typeof window.webkitAudioContext === 'undefined') {
@@ -693,6 +839,9 @@ function createAudioEngine() {
     if (!context) {
       const AudioCtor = window.AudioContext || window.webkitAudioContext;
       context = new AudioCtor();
+      masterGain = context.createGain();
+      masterGain.gain.value = pendingVolume;
+      masterGain.connect(context.destination);
     }
 
     return context;
@@ -714,6 +863,18 @@ function createAudioEngine() {
 
   function setTheme(nextThemeKey) {
     themeKey = THEME_AUDIO_LIBRARY[nextThemeKey] ? nextThemeKey : AVAILABLE_THEMES[0];
+  }
+
+  function setVolume(volume) {
+    pendingVolume = clampVolume(volume);
+
+    if (masterGain) {
+      masterGain.gain.setTargetAtTime(pendingVolume, masterGain.context.currentTime, 0.02);
+    }
+  }
+
+  function getVolume() {
+    return pendingVolume;
   }
 
   function getProfile(nextThemeKey = themeKey) {
@@ -747,7 +908,7 @@ function createAudioEngine() {
     amp.gain.value = 0;
 
     osc.connect(amp);
-    amp.connect(audioContext.destination);
+    amp.connect(masterGain || audioContext.destination);
 
     const startTime = audioContext.currentTime + delay;
     const attack = Math.min(0.02, duration / 4);
@@ -777,9 +938,49 @@ function createAudioEngine() {
 
   function stopAmbient() {
     if (ambientTimerId !== null) {
-      window.clearInterval(ambientTimerId);
+      window.clearTimeout(ambientTimerId);
       ambientTimerId = null;
     }
+  }
+
+  function scheduleAmbientPhrase(profile) {
+    const motif = profile.ambientMotifs[ambientPhraseIndex % profile.ambientMotifs.length];
+    const transpose = (ambientPhraseIndex % 4) * 2;
+    const noteSpacing = 0.22;
+    const phraseLengthMs = motif.length * 220 + 900;
+
+    motif.forEach((step, index) => {
+      const delay = index * noteSpacing;
+      const isAccent = index % 3 === 0;
+
+      playTone({
+        frequency: semitoneToFrequency(profile.baseFrequency, step + transpose - 12),
+        waveType: isAccent ? 'sine' : profile.waveType,
+        duration: isAccent ? 0.28 : 0.22,
+        gain: isAccent ? 0.015 : 0.011,
+        delay,
+        detune: index % 2 === 0 ? -3 : 3,
+      });
+
+      if (index % 2 === 0) {
+        playTone({
+          frequency: semitoneToFrequency(profile.baseFrequency, step + transpose - 24),
+          waveType: 'triangle',
+          duration: 0.34,
+          gain: 0.008,
+          delay: delay + 0.05,
+        });
+      }
+    });
+
+    ambientTimerId = window.setTimeout(() => {
+      if (ambientThemeKey !== themeKey) {
+        return;
+      }
+
+      ambientPhraseIndex += 1;
+      scheduleAmbientPhrase(profile);
+    }, phraseLengthMs);
   }
 
   function playAmbient(nextThemeKey = themeKey) {
@@ -795,42 +996,15 @@ function createAudioEngine() {
 
     stopAmbient();
     ambientThemeKey = nextThemeKey;
-    const profile = getProfile(nextThemeKey);
-    let stepIndex = 0;
-
-    const pulseAmbient = () => {
-      const root = profile.ambientPattern[stepIndex % profile.ambientPattern.length];
-      const harmony = profile.ambientPattern[(stepIndex + 2) % profile.ambientPattern.length];
-
-      playTone({
-        frequency: semitoneToFrequency(profile.baseFrequency, root - 12),
-        waveType: 'sine',
-        duration: 0.85,
-        gain: 0.012,
-        detune: -6,
-      });
-
-      playTone({
-        frequency: semitoneToFrequency(profile.baseFrequency, harmony - 12),
-        waveType: 'triangle',
-        duration: 0.72,
-        gain: 0.01,
-        delay: 0.14,
-        detune: 4,
-      });
-
-      stepIndex += 1;
-    };
-
-    pulseAmbient();
-    ambientTimerId = window.setInterval(pulseAmbient, 1800);
+    ambientPhraseIndex = 0;
+    scheduleAmbientPhrase(getProfile(nextThemeKey));
   }
 
 
   function playSpinStart(nextThemeKey = themeKey) {
     const profile = getProfile(nextThemeKey);
     playAmbient(nextThemeKey);
-    playScale(profile, [0, 4, 7], 0.11, 0.04, 0.08, -2);
+    playScale(profile, [0, 4, 7, 12], 0.11, 0.04, 0.08, -2);
   }
 
   function playReelStop(nextThemeKey = themeKey, reelIndex = 0) {
@@ -848,7 +1022,7 @@ function createAudioEngine() {
     const profile = getProfile(nextThemeKey);
 
     if (resolution.bonusAwarded > 0) {
-      playScale(profile, [0, 4, 7, 12], 0.14, 0.055, 0.11);
+      playScale(profile, [0, 4, 7, 12, 16], 0.14, 0.055, 0.11);
       playTone({
         frequency: semitoneToFrequency(profile.baseFrequency, 16),
         waveType: 'sine',
@@ -860,7 +1034,7 @@ function createAudioEngine() {
     }
 
     if (resolution.outcome.payout > 0) {
-      playScale(profile, [0, 5, 9, 12], 0.14, 0.05, 0.1);
+      playScale(profile, [0, 5, 9, 12, 14], 0.14, 0.05, 0.1);
       playTone({
         frequency: semitoneToFrequency(profile.baseFrequency, 19),
         waveType: 'triangle',
@@ -872,7 +1046,7 @@ function createAudioEngine() {
     }
 
     if (resolution.progressLost > 0 || resolution.outcome.resetsProgress) {
-      playScale(profile, [0, -2, -5, -9], 0.13, 0.04, 0.09);
+      playScale(profile, [0, -2, -5, -9, -12], 0.13, 0.04, 0.09);
       playTone({
         frequency: semitoneToFrequency(profile.baseFrequency, -14),
         waveType: 'sine',
@@ -883,7 +1057,7 @@ function createAudioEngine() {
       return;
     }
 
-    playScale(profile, [0, -3], 0.1, 0.035, 0.08);
+    playScale(profile, [0, -3, -7], 0.1, 0.035, 0.08);
     playTone({
       frequency: semitoneToFrequency(profile.baseFrequency, -12),
       waveType: 'triangle',
@@ -895,19 +1069,21 @@ function createAudioEngine() {
 
   function playCashOut(nextThemeKey = themeKey, tokensRemoved = 0) {
     const profile = getProfile(nextThemeKey);
-    const descent = tokensRemoved > 0 ? [-2, -5, -9] : [-7, -12];
+    const descent = tokensRemoved > 0 ? [-2, -5, -9] : [-7, -12, -15];
     playScale(profile, descent, 0.1, 0.03, 0.08);
   }
 
   function playThemeChange(nextThemeKey = themeKey) {
     const profile = getProfile(nextThemeKey);
     playAmbient(nextThemeKey);
-    playScale(profile, [0, 5, 9], 0.09, 0.035, 0.07, 2);
+    playScale(profile, [0, 5, 9, 12], 0.09, 0.035, 0.07, 2);
   }
 
   return {
     unlock,
     setTheme,
+    setVolume,
+    getVolume,
     playSpinStart,
     playReelStop,
     playOutcome,
