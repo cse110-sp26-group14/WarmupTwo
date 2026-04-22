@@ -26,6 +26,9 @@
  * @property {number} triplePayout
  * @property {number} jackpotPayout
  * @property {string} jackpotSymbol
+ * @property {string} progressDropSymbol
+ * @property {number} progressDropAmount
+ * @property {string} progressResetSymbol
  * @property {number} reelCount
  */
 
@@ -34,6 +37,8 @@
  * @property {number} payout
  * @property {string} message
  * @property {'win' | 'loss'} kind
+ * @property {number} progressDelta
+ * @property {boolean} resetsProgress
  */
 
 /**
@@ -43,6 +48,7 @@
  * @property {number} bonusAwarded
  * @property {number} pityRefillAwarded
  * @property {number} totalPayout
+ * @property {number} progressLost
  * @property {string} statusMessage
  */
 
@@ -68,12 +74,15 @@ export const SLOT_SYMBOLS = Object.freeze([
 export const DEFAULT_GAME_CONFIG = Object.freeze({
   spinCost: 3,
   pityRefill: 12,
-  bonusThreshold: 15,
-  bonusReward: 75,
+  bonusThreshold: 24,
+  bonusReward: 150,
   pairPayout: 6,
   triplePayout: 18,
   jackpotPayout: 30,
   jackpotSymbol: 'LANTERN',
+  progressDropSymbol: 'MASK',
+  progressDropAmount: 4,
+  progressResetSymbol: 'MASK',
   reelCount: 3,
 });
 
@@ -197,6 +206,18 @@ export function evaluateSpinResult(reelSymbols, config = DEFAULT_GAME_CONFIG) {
       payout: config.jackpotPayout,
       message: `Triple ${tripleSymbol}. Theme jackpot.`,
       kind: 'win',
+      progressDelta: 0,
+      resetsProgress: false,
+    };
+  }
+
+  if (tripleSymbol === config.progressResetSymbol) {
+    return {
+      payout: 0,
+      message: `Triple ${tripleSymbol}. The vault meter crashed back to zero.`,
+      kind: 'loss',
+      progressDelta: 0,
+      resetsProgress: true,
     };
   }
 
@@ -205,16 +226,30 @@ export function evaluateSpinResult(reelSymbols, config = DEFAULT_GAME_CONFIG) {
       payout: config.triplePayout,
       message: `Triple ${tripleSymbol}. Nice hit.`,
       kind: 'win',
+      progressDelta: 0,
+      resetsProgress: false,
     };
   }
 
   if (countValues[0] === 2) {
     const pairedSymbol = Object.keys(symbolCounts).find((symbol) => symbolCounts[symbol] === 2);
 
+    if (pairedSymbol === config.progressDropSymbol) {
+      return {
+        payout: 0,
+        message: `Pair of ${pairedSymbol}. The vault meter slipped backward.`,
+        kind: 'loss',
+        progressDelta: -config.progressDropAmount,
+        resetsProgress: false,
+      };
+    }
+
     return {
       payout: config.pairPayout,
       message: `Pair of ${pairedSymbol}. Small win, solid vibes.`,
       kind: 'win',
+      progressDelta: 0,
+      resetsProgress: false,
     };
   }
 
@@ -222,6 +257,8 @@ export function evaluateSpinResult(reelSymbols, config = DEFAULT_GAME_CONFIG) {
     payout: 0,
     message: 'No match this time. The machine says it is still learning.',
     kind: 'loss',
+    progressDelta: 0,
+    resetsProgress: false,
   };
 }
 
@@ -236,11 +273,17 @@ export function evaluateSpinResult(reelSymbols, config = DEFAULT_GAME_CONFIG) {
 export function finishSpin(gameState, reelSymbols, config = DEFAULT_GAME_CONFIG) {
   const safeState = createInitialGameState(gameState);
   const outcome = evaluateSpinResult(reelSymbols, config);
-  const bonusStep = advanceBonusMeter(safeState.bonusProgress, config);
+  const bonusStep = advanceBonusMeter(safeState.bonusProgress, outcome, config);
   const walletBeforeRefill = safeState.wallet + outcome.payout + bonusStep.bonusAwarded;
   const pityRefillAwarded = walletBeforeRefill < config.spinCost ? config.pityRefill : 0;
 
   let statusMessage = outcome.message;
+
+  if (outcome.resetsProgress) {
+    statusMessage = `${statusMessage} Vault progress reset.`;
+  } else if (bonusStep.progressLost > 0) {
+    statusMessage = `${statusMessage} Vault progress lost ${bonusStep.progressLost} step${bonusStep.progressLost === 1 ? '' : 's'}.`;
+  }
 
   if (bonusStep.bonusAwarded > 0) {
     statusMessage = `${statusMessage} Bonus unlocked: +${bonusStep.bonusAwarded} tokens for sticking with it.`;
@@ -265,6 +308,7 @@ export function finishSpin(gameState, reelSymbols, config = DEFAULT_GAME_CONFIG)
     bonusAwarded: bonusStep.bonusAwarded,
     pityRefillAwarded,
     totalPayout: outcome.payout + bonusStep.bonusAwarded,
+    progressLost: bonusStep.progressLost,
     statusMessage,
   };
 }
@@ -347,20 +391,40 @@ function countSymbols(reelSymbols) {
 }
 
 /**
- * Advance the bonus meter by one spin.
+ * Advance the bonus meter by one spin, then apply setbacks or a full reset.
  *
  * @param {number} currentProgress
+ * @param {SpinOutcome} outcome
  * @param {GameConfig} config
- * @returns {{ nextProgress: number, bonusAwarded: number }}
+ * @returns {{ nextProgress: number, bonusAwarded: number, progressLost: number }}
  */
-function advanceBonusMeter(currentProgress, config) {
-  const nextProgress = toWholeNumber(currentProgress) + 1;
+function advanceBonusMeter(currentProgress, outcome, config) {
+  const baseProgress = toWholeNumber(currentProgress) + 1;
 
-  if (nextProgress < config.bonusThreshold) {
-    return { nextProgress, bonusAwarded: 0 };
+  if (outcome.resetsProgress) {
+    return {
+      nextProgress: 0,
+      bonusAwarded: 0,
+      progressLost: baseProgress,
+    };
   }
 
-  return { nextProgress: 0, bonusAwarded: config.bonusReward };
+  const adjustedProgress = Math.max(0, baseProgress + outcome.progressDelta);
+  const progressLost = Math.max(0, baseProgress - adjustedProgress);
+
+  if (adjustedProgress < config.bonusThreshold) {
+    return {
+      nextProgress: adjustedProgress,
+      bonusAwarded: 0,
+      progressLost,
+    };
+  }
+
+  return {
+    nextProgress: 0,
+    bonusAwarded: config.bonusReward,
+    progressLost,
+  };
 }
 
 /**

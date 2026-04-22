@@ -9,137 +9,149 @@
 <body>
   <noscript class="noscript-banner">Token Furnace 3000 needs JavaScript enabled to spin the reels.</noscript>
 
+  <header class="top-banner">
+    <p class="eyebrow">Theme Slot Cabinet</p>
+    <h1>Token Furnace 3000</h1>
+    <p class="intro">
+      Pick a setting, pull the machine, and chase the vault. The climb is longer now,
+      the payout is fatter, and a few unlucky combinations can smash your progress.
+    </p>
+  </header>
+
   <main class="app-shell">
-    <header class="top-banner">
-      <div class="banner-copy">
-        <p class="eyebrow">Lightly Silly AI Token Arcade</p>
-        <h1>Token Furnace 3000</h1>
-        <p class="intro">
-          Spin the reels, collect tokens, and enjoy a few gentle jokes about AI hype.
-          It is colorful, low-stakes, and only slightly overconfident.
-        </p>
-      </div>
-
-      <div class="sidebar-stack">
-        <aside class="quick-guide" aria-label="How to play">
-          <p class="mini-label">How to play</p>
-          <p class="guide-text" id="guideText">
-            Each spin costs 3 tokens. Match symbols to win. The bonus meter is a long climb, but the payout is worth it.
-          </p>
-        </aside>
-
-        <section class="theme-picker" aria-label="Theme selector">
-          <p class="mini-label">Pick a setting</p>
-          <div class="theme-options">
-            <button class="theme-chip" data-theme-option="festival" type="button">Lantern Festival</button>
-            <button class="theme-chip" data-theme-option="riviera" type="button">Riviera Postcards</button>
-            <button class="theme-chip" data-theme-option="oasis" type="button">Oasis Caravan</button>
-          </div>
-          <p class="theme-flavor" id="themeFlavor">
-            Lanterns, koi, drums, and a lucky-gate jackpot.
-          </p>
-        </section>
-      </div>
-    </header>
-
     <section class="machine-panel" aria-labelledby="machineTitle">
-      <div class="machine-topper">
+      <div class="cabinet-top">
         <div>
-          <p class="mini-label" id="machineEyebrow">Center Stage</p>
+          <p class="mini-label" id="machineEyebrow">Festival lights</p>
           <h2 id="machineTitle">Lantern Festival Spinner</h2>
         </div>
-        <div class="price-tag">3 tokens per spin</div>
+
+        <div class="cabinet-prizes">
+          <article class="prize-chip">
+            <span>Spin Cost</span>
+            <strong>3 tokens</strong>
+          </article>
+          <article class="prize-chip">
+            <span>Vault Prize</span>
+            <strong id="vaultPrize">150 tokens</strong>
+          </article>
+        </div>
       </div>
 
-      <div class="machine-body">
-        <div class="feedback-row">
-          <div class="feedback-pill ready" id="feedbackPill" aria-live="polite">Ready to spin</div>
+      <div class="cabinet-grid">
+        <aside class="cabinet-side theme-panel">
+          <section class="side-card quick-guide" aria-label="How to play">
+            <p class="mini-label">How to play</p>
+            <p class="guide-text" id="guideText">
+              Pick a theme, spin the machine, and climb the vault meter. It takes 24 spins to cash the big bonus, but some bad combinations can push you backward.
+            </p>
+          </section>
 
-          <div class="bonus-cluster" id="bonusCluster" aria-live="polite">
-            <div class="bonus-copy">
-              <span class="bonus-label">Jackpot climb</span>
-              <strong id="bonusText">0 / 15 spins</strong>
+          <section class="side-card theme-picker" aria-label="Theme selector">
+            <p class="mini-label">Pick a setting</p>
+            <div class="theme-options">
+              <button class="theme-chip" data-theme-option="festival" type="button">Festival Lights</button>
+              <button class="theme-chip" data-theme-option="riviera" type="button">Riviera Table</button>
+              <button class="theme-chip" data-theme-option="oasis" type="button">Oasis Route</button>
             </div>
-            <p class="bonus-alert" id="bonusAlert">Fifteen spins until the bonus vault opens.</p>
-            <div class="bonus-track" aria-hidden="true">
-              <div class="bonus-fill" id="bonusFill"></div>
+            <p class="theme-flavor" id="themeFlavor">
+              Lanterns, koi, drums, and a lucky-gate jackpot.
+            </p>
+          </section>
+        </aside>
+
+        <div class="machine-core">
+          <div class="feedback-row">
+            <div class="feedback-pill ready" id="feedbackPill" aria-live="polite">Ready to spin</div>
+
+            <div class="bonus-cluster" id="bonusCluster" aria-live="polite">
+              <div class="bonus-copy">
+                <span class="bonus-label">Vault climb</span>
+                <strong id="bonusText">0 / 24 spins</strong>
+              </div>
+              <p class="bonus-alert" id="bonusAlert">24 spins until the vault opens.</p>
+              <div class="bonus-track" aria-hidden="true">
+                <div class="bonus-fill" id="bonusFill"></div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="reel-stage">
-          <div class="reels" aria-live="polite">
-            <div class="reel-window"><span class="reel-symbol" id="reel0">LANTERN</span></div>
-            <div class="reel-window"><span class="reel-symbol" id="reel1">KOI</span></div>
-            <div class="reel-window"><span class="reel-symbol" id="reel2">DRUM</span></div>
+          <div class="reel-stage">
+            <div class="reels" aria-live="polite">
+              <div class="reel-window"><span class="reel-symbol" id="reel0"></span></div>
+              <div class="reel-window"><span class="reel-symbol" id="reel1"></span></div>
+              <div class="reel-window"><span class="reel-symbol" id="reel2"></span></div>
+            </div>
+
+            <div class="result-overlay" id="resultOverlay" aria-live="polite" aria-atomic="true">
+              <div class="result-overlay-card" id="resultOverlayCard">
+                <p class="result-kicker" id="resultKicker"></p>
+                <strong class="result-value" id="resultValue"></strong>
+                <p class="result-caption" id="resultCaption"></p>
+              </div>
+            </div>
           </div>
 
-          <div class="result-burst ready" id="resultBurst" aria-live="polite" aria-atomic="true">
-            <p class="result-kicker" id="resultKicker">Next up</p>
-            <strong class="result-value" id="resultValue">SPIN TO PLAY</strong>
-            <p class="result-caption" id="resultCaption">The machine saves the loud part for the result.</p>
+          <div class="controls">
+            <button class="spin-button" id="spinButton" type="button">Spin</button>
+            <button class="secondary-button" id="cashOutButton" type="button">Trade Tokens For Slides</button>
           </div>
+
+          <p class="machine-status" id="statusLine" role="status" aria-live="polite">
+            Machine warmed up. Spin whenever you're ready.
+          </p>
         </div>
 
-        <div class="controls">
-          <button class="spin-button" id="spinButton" type="button">Spin</button>
-          <button class="secondary-button" id="cashOutButton" type="button">Trade Tokens For Slides</button>
-        </div>
+        <aside class="cabinet-side score-panel">
+          <section class="side-card scoreboard" aria-label="Token scoreboard">
+            <article class="stat-card">
+              <span class="stat-label">Wallet</span>
+              <strong class="stat-value" id="walletCount">30</strong>
+              <span class="stat-note">Tokens ready to use</span>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Won</span>
+              <strong class="stat-value" id="wonCount">0</strong>
+              <span class="stat-note">Tokens earned from hits</span>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Spent</span>
+              <strong class="stat-value" id="spentCount">0</strong>
+              <span class="stat-note">Tokens fed back into the machine</span>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Hot streak</span>
+              <strong class="stat-value" id="streakCount">0 wins</strong>
+              <span class="stat-note">Back-to-back wins</span>
+            </article>
+          </section>
 
-        <p class="machine-status" id="statusLine" role="status" aria-live="polite">
-          Machine warmed up. Spin whenever you're ready.
-        </p>
-
-        <div class="ticker-grid">
-          <article class="ticker-card">
-            <span class="ticker-label">Last payout</span>
-            <strong id="lastPayout">0 tokens</strong>
-          </article>
-          <article class="ticker-card">
-            <span class="ticker-label">Hot streak</span>
-            <strong id="streakCount">0 wins</strong>
-          </article>
-          <article class="ticker-card">
-            <span class="ticker-label">Spins</span>
-            <strong id="spinCount">0</strong>
-          </article>
-          <article class="ticker-card">
-            <span class="ticker-label">Mood</span>
-            <strong id="moodText">Easygoing</strong>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section class="info-grid">
-      <div class="scoreboard" aria-label="Token scoreboard">
-        <article class="stat-card">
-          <span class="stat-label">Wallet</span>
-          <strong class="stat-value" id="walletCount">30</strong>
-          <span class="stat-note">Tokens ready to use</span>
-        </article>
-        <article class="stat-card">
-          <span class="stat-label">Won</span>
-          <strong class="stat-value" id="wonCount">0</strong>
-          <span class="stat-note">Tokens earned from hits</span>
-        </article>
-        <article class="stat-card">
-          <span class="stat-label">Spent</span>
-          <strong class="stat-value" id="spentCount">0</strong>
-          <span class="stat-note">Tokens fed back into the machine</span>
-        </article>
+          <section class="side-card rules-panel">
+            <h3>Risk Board</h3>
+            <ul>
+              <li id="jackpotRule">Three LANTERN icons: jackpot +30 tokens</li>
+              <li id="bonusRule">Every 24 spins: vault +150 tokens</li>
+              <li id="setbackRule">Pair of MASK icons: lose 4 progress</li>
+              <li id="resetRule">Triple MASK icons: reset the vault</li>
+            </ul>
+          </section>
+        </aside>
       </div>
 
-      <aside class="rules-panel">
-        <h3>Simple Rules</h3>
-        <ul>
-          <li>Match 2 symbols: +6 tokens</li>
-          <li>Match 3 symbols: +18 tokens</li>
-          <li id="jackpotRule">Three LANTERNs: jackpot +30 tokens</li>
-          <li id="bonusRule">Every 15 spins: bonus +75 tokens</li>
-          <li>If your wallet gets too low, the machine tosses you 12 comeback tokens</li>
-        </ul>
-      </aside>
+      <div class="cabinet-bottom ticker-grid">
+        <article class="ticker-card">
+          <span class="ticker-label">Last payout</span>
+          <strong id="lastPayout">0 tokens</strong>
+        </article>
+        <article class="ticker-card">
+          <span class="ticker-label">Spins</span>
+          <strong id="spinCount">0</strong>
+        </article>
+        <article class="ticker-card">
+          <span class="ticker-label">Mood</span>
+          <strong id="moodText">Easygoing</strong>
+        </article>
+      </div>
     </section>
   </main>
 
@@ -152,3 +164,4 @@
   <script type="module" src="script.js"></script>
 </body>
 </html>
+

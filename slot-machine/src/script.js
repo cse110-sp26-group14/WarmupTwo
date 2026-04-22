@@ -12,6 +12,7 @@ const REEL_SPIN_DURATIONS_MS = Object.freeze([700, 920, 1140]);
 const REEL_TICK_INTERVAL_MS = 90;
 const TOAST_DURATION_MS = 1800;
 const PANEL_EFFECT_DURATION_MS = 550;
+const RESULT_OVERLAY_DURATION_MS = 2200;
 const THEME_STORAGE_KEY = 'token-furnace-theme';
 
 const THEME_LIBRARY = Object.freeze({
@@ -21,10 +22,20 @@ const THEME_LIBRARY = Object.freeze({
     machineTitle: 'Lantern Festival Spinner',
     machineEyebrow: 'Festival lights',
     flavorText: 'Lanterns, koi, drums, and a lucky-gate jackpot.',
-    guideText: 'Spin through lanterns and festival charms. The bonus meter takes 15 spins to fill, but it drops 75 tokens when it hits.',
-    readyCaption: 'Festival lanterns are glowing. The lucky gate is waiting.',
-    symbols: ['LANTERN', 'KOI', 'DRUM', 'FAN', 'MASK', 'TORII', 'MOCHI', 'LUCK'],
+    guideText: 'Festival charms fill the reels. Build the vault over 24 spins, but MASK combinations can knock your climb backwards.',
+    symbols: [
+      { key: 'LANTERN', label: 'Lantern', icon: '??' },
+      { key: 'KOI', label: 'Koi', icon: '??' },
+      { key: 'DRUM', label: 'Drum', icon: '??' },
+      { key: 'FAN', label: 'Fan', icon: '??' },
+      { key: 'MASK', label: 'Mask', icon: '??' },
+      { key: 'TORII', label: 'Gate', icon: '??' },
+      { key: 'MOCHI', label: 'Mochi', icon: '??' },
+      { key: 'LUCK', label: 'Lucky', icon: '??' },
+    ],
     jackpotSymbol: 'LANTERN',
+    progressDropSymbol: 'MASK',
+    progressResetSymbol: 'MASK',
   },
   riviera: {
     key: 'riviera',
@@ -32,38 +43,48 @@ const THEME_LIBRARY = Object.freeze({
     machineTitle: 'Riviera Postcard Spinner',
     machineEyebrow: 'Coastal table',
     flavorText: 'Sun-washed tiles, olive branches, and postcard-blue water.',
-    guideText: 'Spin through seaside icons and postcard colors. The bonus meter takes 15 spins to fill, but it drops 75 tokens when it hits.',
-    readyCaption: 'The coast is calm, the tiles are bright, and the lemons look suspiciously lucky.',
-    symbols: ['OLIVE', 'TILE', 'LEMON', 'WAVE', 'SUN', 'SHELL', 'SAIL', 'COAST'],
+    guideText: 'Coastal icons fill this cabinet. The vault is rich, but WAVE combinations can wash progress away before it pays out.',
+    symbols: [
+      { key: 'OLIVE', label: 'Olive', icon: '??' },
+      { key: 'TILE', label: 'Tile', icon: '??' },
+      { key: 'LEMON', label: 'Lemon', icon: '??' },
+      { key: 'WAVE', label: 'Wave', icon: '??' },
+      { key: 'SUN', label: 'Sun', icon: '??' },
+      { key: 'SHELL', label: 'Shell', icon: '??' },
+      { key: 'SAIL', label: 'Sail', icon: '?' },
+      { key: 'COAST', label: 'Coast', icon: '???' },
+    ],
     jackpotSymbol: 'SUN',
+    progressDropSymbol: 'WAVE',
+    progressResetSymbol: 'WAVE',
   },
   oasis: {
     key: 'oasis',
     buttonLabel: 'Oasis Caravan',
     machineTitle: 'Oasis Caravan Spinner',
     machineEyebrow: 'Desert route',
-    flavorText: 'Palm shade, lantern glow, and a jackpot hidden beyond the dunes.',
-    guideText: 'Spin through desert icons and warm golds. The bonus meter takes 15 spins to fill, but it drops 75 tokens when it hits.',
-    readyCaption: 'The caravan is parked, the lamps are lit, and the desert jackpot is in range.',
-    symbols: ['PALM', 'DUNE', 'LAMP', 'STAR', 'OASIS', 'FALCON', 'DATE', 'MOON'],
+    flavorText: 'Palm shade, lamp glow, and a vault hidden beyond the dunes.',
+    guideText: 'Desert icons and warm golds shape this machine. The vault is huge, but MOON combinations can cut or wipe your progress.',
+    symbols: [
+      { key: 'PALM', label: 'Palm', icon: '??' },
+      { key: 'DUNE', label: 'Dune', icon: '???' },
+      { key: 'LAMP', label: 'Lamp', icon: '??' },
+      { key: 'STAR', label: 'Star', icon: '?' },
+      { key: 'OASIS', label: 'Spring', icon: '??' },
+      { key: 'FALCON', label: 'Falcon', icon: '??' },
+      { key: 'GEM', label: 'Gem', icon: '??' },
+      { key: 'MOON', label: 'Moon', icon: '??' },
+    ],
     jackpotSymbol: 'LAMP',
+    progressDropSymbol: 'MOON',
+    progressResetSymbol: 'MOON',
   },
 });
 
 const AVAILABLE_THEMES = Object.freeze(Object.keys(THEME_LIBRARY));
 
-/**
- * @typedef {Object} ThemeDefinition
- * @property {string} key
- * @property {string} buttonLabel
- * @property {string} machineTitle
- * @property {string} machineEyebrow
- * @property {string} flavorText
- * @property {string} guideText
- * @property {string} readyCaption
- * @property {string[]} symbols
- * @property {string} jackpotSymbol
- */
+/** @typedef {{ key: string, label: string, icon: string }} ThemeSymbol */
+/** @typedef {typeof THEME_LIBRARY[keyof typeof THEME_LIBRARY]} ThemeDefinition */
 
 /**
  * @typedef {Object} AppElements
@@ -86,57 +107,42 @@ const AVAILABLE_THEMES = Object.freeze(Object.keys(THEME_LIBRARY));
  * @property {HTMLElement} bonusCluster
  * @property {HTMLElement} bonusAlert
  * @property {HTMLElement} feedbackPill
- * @property {HTMLElement} resultBurst
- * @property {HTMLElement} resultKicker
- * @property {HTMLElement} resultValue
- * @property {HTMLElement} resultCaption
  * @property {HTMLElement} machineTitle
  * @property {HTMLElement} machineEyebrow
+ * @property {HTMLElement} vaultPrize
  * @property {HTMLElement} themeFlavor
  * @property {HTMLElement} guideText
  * @property {HTMLElement} jackpotRule
  * @property {HTMLElement} bonusRule
+ * @property {HTMLElement} setbackRule
+ * @property {HTMLElement} resetRule
+ * @property {HTMLElement} resultOverlay
+ * @property {HTMLElement} resultOverlayCard
+ * @property {HTMLElement} resultKicker
+ * @property {HTMLElement} resultValue
+ * @property {HTMLElement} resultCaption
  * @property {HTMLButtonElement[]} themeButtons
- * @property {string[]} symbolPool
+ * @property {ThemeSymbol[]} symbolPool
  */
 
 let gameState = createInitialGameState();
 /** @type {ThemeDefinition} */
 let activeTheme = THEME_LIBRARY.festival;
+let overlayTimeoutId = null;
 
 initializeApp();
 
-/**
- * Start the browser app when the DOM is ready.
- *
- * @returns {void}
- */
 function initializeApp() {
   try {
     const elements = createAppElements();
     applyTheme(loadStoredTheme(), elements);
     attachEventListeners(elements);
     renderGameState(gameState, elements);
-    showResultState(
-      elements,
-      {
-        kind: 'ready',
-        kicker: activeTheme.buttonLabel,
-        value: 'SPIN TO PLAY',
-        caption: activeTheme.readyCaption,
-      },
-      false
-    );
   } catch (error) {
     console.error('Unable to initialize the slot machine UI.', error);
   }
 }
 
-/**
- * Look up and validate the DOM elements used by the app.
- *
- * @returns {AppElements}
- */
 function createAppElements() {
   return {
     reelSymbols: [
@@ -162,27 +168,25 @@ function createAppElements() {
     bonusCluster: getRequiredHtmlElement('#bonusCluster'),
     bonusAlert: getRequiredHtmlElement('#bonusAlert'),
     feedbackPill: getRequiredHtmlElement('#feedbackPill'),
-    resultBurst: getRequiredHtmlElement('#resultBurst'),
-    resultKicker: getRequiredHtmlElement('#resultKicker'),
-    resultValue: getRequiredHtmlElement('#resultValue'),
-    resultCaption: getRequiredHtmlElement('#resultCaption'),
     machineTitle: getRequiredHtmlElement('#machineTitle'),
     machineEyebrow: getRequiredHtmlElement('#machineEyebrow'),
+    vaultPrize: getRequiredHtmlElement('#vaultPrize'),
     themeFlavor: getRequiredHtmlElement('#themeFlavor'),
     guideText: getRequiredHtmlElement('#guideText'),
     jackpotRule: getRequiredHtmlElement('#jackpotRule'),
     bonusRule: getRequiredHtmlElement('#bonusRule'),
+    setbackRule: getRequiredHtmlElement('#setbackRule'),
+    resetRule: getRequiredHtmlElement('#resetRule'),
+    resultOverlay: getRequiredHtmlElement('#resultOverlay'),
+    resultOverlayCard: getRequiredHtmlElement('#resultOverlayCard'),
+    resultKicker: getRequiredHtmlElement('#resultKicker'),
+    resultValue: getRequiredHtmlElement('#resultValue'),
+    resultCaption: getRequiredHtmlElement('#resultCaption'),
     themeButtons: getThemeButtons(),
     symbolPool: [...activeTheme.symbols],
   };
 }
 
-/**
- * Wire button click handlers.
- *
- * @param {AppElements} elements
- * @returns {void}
- */
 function attachEventListeners(elements) {
   elements.spinButton.addEventListener('click', () => {
     void handleSpinClick(elements);
@@ -198,18 +202,12 @@ function attachEventListeners(elements) {
         return;
       }
 
+      hideResultOverlay(elements);
       applyTheme(button.dataset.themeOption || AVAILABLE_THEMES[0], elements);
     });
   });
 }
 
-/**
- * Render the current state into the DOM.
- *
- * @param {ReturnType<typeof createInitialGameState>} state
- * @param {AppElements} elements
- * @returns {void}
- */
 function renderGameState(state, elements) {
   const gameConfig = getActiveGameConfig();
 
@@ -229,12 +227,6 @@ function renderGameState(state, elements) {
   elements.cashOutButton.disabled = state.isSpinning;
 }
 
-/**
- * Handle the spin button and recover cleanly if animation or DOM work fails.
- *
- * @param {AppElements} elements
- * @returns {Promise<void>}
- */
 async function handleSpinClick(elements) {
   const gameConfig = getActiveGameConfig();
 
@@ -243,6 +235,7 @@ async function handleSpinClick(elements) {
   }
 
   const previousState = gameState;
+  hideResultOverlay(elements);
 
   try {
     const paidSpinState = startSpin(gameState, gameConfig);
@@ -255,16 +248,6 @@ async function handleSpinClick(elements) {
     };
 
     setStatusMessage(elements, 'The reels are warming up.');
-    showResultState(
-      elements,
-      {
-        kind: 'spinning',
-        kicker: activeTheme.buttonLabel,
-        value: 'REELS IN MOTION',
-        caption: `The ${activeTheme.machineTitle.toLowerCase()} is shuffling its symbols.`,
-      },
-      true
-    );
     renderGameState(gameState, elements);
 
     const reelSymbols = await spinAllReels(elements);
@@ -277,8 +260,9 @@ async function handleSpinClick(elements) {
     };
 
     playSpinEffects(resolution, elements);
-    showResultState(elements, getResultStateForSpin(resolution, gameConfig), true);
     setStatusMessage(elements, resolution.statusMessage);
+    renderGameState(gameState, elements);
+    showResultOverlay(elements, getResultStateForSpin(resolution, gameConfig));
   } catch (error) {
     console.error('The spin action failed.', error);
     gameState = {
@@ -287,28 +271,11 @@ async function handleSpinClick(elements) {
       feedbackKind: 'loss',
       feedbackText: 'Spin failed',
     };
-    showResultState(
-      elements,
-      {
-        kind: 'loss',
-        kicker: 'Machine jam',
-        value: 'TRY AGAIN',
-        caption: 'The reels had a moment. Everything is reset now.',
-      },
-      true
-    );
     setStatusMessage(elements, 'The machine jammed for a second. Please try again.');
+    renderGameState(gameState, elements);
   }
-
-  renderGameState(gameState, elements);
 }
 
-/**
- * Handle the slide-deck cash-out button.
- *
- * @param {AppElements} elements
- * @returns {void}
- */
 function handleCashOutClick(elements) {
   if (gameState.isSpinning) {
     return;
@@ -332,17 +299,11 @@ function handleCashOutClick(elements) {
     queueToast(elements, `Refill +${resolution.pityRefillAwarded} tokens`);
   }
 
-  showResultState(elements, getResultStateForCashOut(resolution), true);
+  hideResultOverlay(elements);
   setStatusMessage(elements, resolution.statusMessage);
   renderGameState(gameState, elements);
 }
 
-/**
- * Animate all reels and return their final symbols.
- *
- * @param {AppElements} elements
- * @returns {Promise<string[]>}
- */
 function spinAllReels(elements) {
   return Promise.all(
     elements.reelSymbols.map((element, index) =>
@@ -351,19 +312,11 @@ function spinAllReels(elements) {
   );
 }
 
-/**
- * Animate a single reel until it lands on a final symbol.
- *
- * @param {HTMLElement} reelElement
- * @param {number} durationMs
- * @param {string[]} symbolPool
- * @returns {Promise<string>}
- */
 function animateReelSymbol(reelElement, durationMs, symbolPool) {
   reelElement.classList.add('spinning');
 
   const timerId = window.setInterval(() => {
-    reelElement.textContent = pickRandomSymbol(symbolPool);
+    renderReelSymbol(reelElement, pickRandomSymbol(symbolPool));
   }, REEL_TICK_INTERVAL_MS);
 
   return new Promise((resolve) => {
@@ -371,19 +324,12 @@ function animateReelSymbol(reelElement, durationMs, symbolPool) {
       window.clearInterval(timerId);
       reelElement.classList.remove('spinning');
       const finalSymbol = pickRandomSymbol(symbolPool);
-      reelElement.textContent = finalSymbol;
-      resolve(finalSymbol);
+      renderReelSymbol(reelElement, finalSymbol);
+      resolve(finalSymbol.key);
     }, durationMs);
   });
 }
 
-/**
- * Apply effects after a completed spin.
- *
- * @param {import('./game-logic.js').SpinResolution} resolution
- * @param {AppElements} elements
- * @returns {void}
- */
 function playSpinEffects(resolution, elements) {
   if (resolution.outcome.payout > 0) {
     flashMachinePanel(elements.machinePanel, 'win-flash');
@@ -395,7 +341,11 @@ function playSpinEffects(resolution, elements) {
   }
 
   if (resolution.bonusAwarded > 0) {
-    queueToast(elements, `Bonus +${resolution.bonusAwarded} tokens`);
+    queueToast(elements, `Vault +${resolution.bonusAwarded} tokens`);
+  }
+
+  if (resolution.progressLost > 0) {
+    queueToast(elements, `Vault -${resolution.progressLost} progress`);
   }
 
   if (resolution.pityRefillAwarded > 0) {
@@ -403,63 +353,41 @@ function playSpinEffects(resolution, elements) {
   }
 }
 
-/**
- * Update the bonus meter styling and alert copy.
- *
- * @param {ReturnType<typeof createInitialGameState>} state
- * @param {AppElements} elements
- * @param {import('./game-logic.js').GameConfig} gameConfig
- * @returns {void}
- */
 function updateBonusMeterState(state, elements, gameConfig) {
   const remainingSpins = Math.max(0, gameConfig.bonusThreshold - state.bonusProgress);
   elements.bonusCluster.classList.remove('warm', 'heated', 'imminent');
 
   if (remainingSpins <= 1) {
     elements.bonusCluster.classList.add('imminent');
-  } else if (remainingSpins <= 3) {
+  } else if (remainingSpins <= 4) {
     elements.bonusCluster.classList.add('heated');
-  } else if (remainingSpins <= 6) {
+  } else if (remainingSpins <= 8) {
     elements.bonusCluster.classList.add('warm');
   }
 
   elements.bonusAlert.textContent = getBonusAlertText(state, remainingSpins, gameConfig);
 }
 
-/**
- * Build the bonus meter message.
- *
- * @param {ReturnType<typeof createInitialGameState>} state
- * @param {number} remainingSpins
- * @param {import('./game-logic.js').GameConfig} gameConfig
- * @returns {string}
- */
 function getBonusAlertText(state, remainingSpins, gameConfig) {
   if (remainingSpins === 1) {
     return `One more spin opens the ${gameConfig.bonusReward}-token vault.`;
   }
 
-  if (remainingSpins <= 3) {
-    return `${remainingSpins} spins left. The meter is almost at ${gameConfig.bonusReward} tokens.`;
+  if (remainingSpins <= 4) {
+    return `${remainingSpins} spins left. One bad combo could still wreck the climb.`;
   }
 
-  if (remainingSpins <= 6) {
-    return `${remainingSpins} spins left. The vault is finally getting close.`;
+  if (remainingSpins <= 8) {
+    return `${remainingSpins} spins left. The vault is finally in sight.`;
   }
 
   if (state.spins === 0 || state.bonusProgress > 0) {
-    return `${remainingSpins} spins until the ${gameConfig.bonusReward}-token bonus vault opens.`;
+    return `${remainingSpins} spins until the ${gameConfig.bonusReward}-token vault opens.`;
   }
 
-  return `Meter reset. ${gameConfig.bonusThreshold} spins until the next ${gameConfig.bonusReward}-token drop.`;
+  return `Vault reset. ${gameConfig.bonusThreshold} spins until the next ${gameConfig.bonusReward}-token payout.`;
 }
 
-/**
- * Choose the feedback style for the status pill after a spin.
- *
- * @param {import('./game-logic.js').SpinResolution} resolution
- * @returns {'win' | 'loss' | 'bonus'}
- */
 function getFeedbackKindForSpin(resolution) {
   if (resolution.bonusAwarded > 0) {
     return 'bonus';
@@ -468,31 +396,22 @@ function getFeedbackKindForSpin(resolution) {
   return resolution.outcome.kind;
 }
 
-/**
- * Choose the short feedback label for the status pill after a spin.
- *
- * @param {import('./game-logic.js').SpinResolution} resolution
- * @returns {string}
- */
 function getFeedbackTextForSpin(resolution) {
   if (resolution.bonusAwarded > 0) {
-    return `Bonus +${resolution.bonusAwarded}`;
+    return `Vault +${resolution.bonusAwarded}`;
   }
 
   if (resolution.outcome.payout > 0) {
     return `Win +${resolution.outcome.payout}`;
   }
 
+  if (resolution.progressLost > 0 || resolution.outcome.resetsProgress) {
+    return 'Progress hit';
+  }
+
   return 'Try again';
 }
 
-/**
- * Create the explicit result display for a completed spin.
- *
- * @param {import('./game-logic.js').SpinResolution} resolution
- * @param {import('./game-logic.js').GameConfig} gameConfig
- * @returns {{ kind: string, kicker: string, value: string, caption: string }}
- */
 function getResultStateForSpin(resolution, gameConfig) {
   if (resolution.outcome.payout === gameConfig.jackpotPayout) {
     return {
@@ -506,8 +425,26 @@ function getResultStateForSpin(resolution, gameConfig) {
   if (resolution.bonusAwarded > 0) {
     return {
       kind: 'bonus',
-      kicker: 'Bonus vault',
+      kicker: 'Vault opened',
       value: `+${resolution.totalPayout} TOKENS`,
+      caption: resolution.statusMessage,
+    };
+  }
+
+  if (resolution.outcome.resetsProgress) {
+    return {
+      kind: 'loss',
+      kicker: 'Vault reset',
+      value: `${activeTheme.progressResetSymbol} TRIO`,
+      caption: resolution.statusMessage,
+    };
+  }
+
+  if (resolution.progressLost > 0) {
+    return {
+      kind: 'loss',
+      kicker: 'Progress hit',
+      value: `-${resolution.progressLost} STEPS`,
       caption: resolution.statusMessage,
     };
   }
@@ -521,15 +458,6 @@ function getResultStateForSpin(resolution, gameConfig) {
     };
   }
 
-  if (resolution.pityRefillAwarded > 0) {
-    return {
-      kind: 'bonus',
-      kicker: 'Comeback',
-      value: `+${resolution.pityRefillAwarded} TOKENS`,
-      caption: resolution.statusMessage,
-    };
-  }
-
   return {
     kind: 'loss',
     kicker: activeTheme.buttonLabel,
@@ -538,71 +466,35 @@ function getResultStateForSpin(resolution, gameConfig) {
   };
 }
 
-/**
- * Create the explicit result display for the cash-out action.
- *
- * @param {import('./game-logic.js').CashOutResolution} resolution
- * @returns {{ kind: string, kicker: string, value: string, caption: string }}
- */
-function getResultStateForCashOut(resolution) {
-  if (resolution.tokensRemoved === 0) {
-    return {
-      kind: 'ready',
-      kicker: 'Wallet empty',
-      value: 'NOTHING TO TRADE',
-      caption: resolution.statusMessage,
-    };
+function showResultOverlay(elements, state) {
+  if (overlayTimeoutId) {
+    window.clearTimeout(overlayTimeoutId);
   }
 
-  return {
-    kind: 'cashout',
-    kicker: 'Slides acquired',
-    value: `-${resolution.tokensRemoved} TOKENS`,
-    caption: resolution.statusMessage,
-  };
-}
-
-/**
- * Show the large animated result card.
- *
- * @param {AppElements} elements
- * @param {{ kind: string, kicker: string, value: string, caption: string }} state
- * @param {boolean} shouldAnimate
- * @returns {void}
- */
-function showResultState(elements, state, shouldAnimate) {
-  elements.resultBurst.className = `result-burst ${state.kind}`;
+  elements.resultOverlay.classList.add('visible');
+  elements.resultOverlayCard.className = `result-overlay-card ${state.kind}`;
   elements.resultKicker.textContent = state.kicker;
   elements.resultValue.textContent = state.value;
   elements.resultCaption.textContent = state.caption;
 
-  if (!shouldAnimate) {
-    return;
-  }
-
-  elements.resultBurst.classList.remove('is-animating');
-  void elements.resultBurst.offsetWidth;
-  elements.resultBurst.classList.add('is-animating');
+  overlayTimeoutId = window.setTimeout(() => {
+    hideResultOverlay(elements);
+  }, RESULT_OVERLAY_DURATION_MS);
 }
 
-/**
- * Update the main status line.
- *
- * @param {AppElements} elements
- * @param {string} message
- * @returns {void}
- */
+function hideResultOverlay(elements) {
+  if (overlayTimeoutId) {
+    window.clearTimeout(overlayTimeoutId);
+    overlayTimeoutId = null;
+  }
+
+  elements.resultOverlay.classList.remove('visible');
+}
+
 function setStatusMessage(elements, message) {
   elements.statusLine.textContent = message;
 }
 
-/**
- * Show a short toast message if the template is available.
- *
- * @param {AppElements} elements
- * @param {string} message
- * @returns {void}
- */
 function queueToast(elements, message) {
   const templateChild = elements.toastTemplate.content.firstElementChild;
 
@@ -624,13 +516,6 @@ function queueToast(elements, message) {
   }, TOAST_DURATION_MS);
 }
 
-/**
- * Flash the machine panel after a win or loss.
- *
- * @param {HTMLElement} panel
- * @param {'win-flash' | 'loss-flash'} effectClass
- * @returns {void}
- */
 function flashMachinePanel(panel, effectClass) {
   panel.classList.remove('win-flash', 'loss-flash');
   panel.classList.add(effectClass);
@@ -640,38 +525,24 @@ function flashMachinePanel(panel, effectClass) {
   }, PANEL_EFFECT_DURATION_MS);
 }
 
-/**
- * Trigger device vibration when available.
- *
- * @param {number | number[]} pattern
- * @returns {void}
- */
 function triggerVibration(pattern) {
   if ('vibrate' in navigator) {
     navigator.vibrate(pattern);
   }
 }
 
-/**
- * Pick a random reel symbol.
- *
- * @param {string[]} symbolPool
- * @returns {string}
- */
+function renderReelSymbol(element, symbol) {
+  element.innerHTML = `<span class="symbol-icon" aria-hidden="true">${symbol.icon}</span><span class="symbol-label">${symbol.label}</span>`;
+}
+
 function pickRandomSymbol(symbolPool) {
   const randomIndex = Math.floor(Math.random() * symbolPool.length);
   return symbolPool[randomIndex];
 }
 
-/**
- * Apply the selected visual theme and persist it.
- *
- * @param {string} themeName
- * @param {AppElements} elements
- * @returns {void}
- */
 function applyTheme(themeName, elements) {
   const safeTheme = THEME_LIBRARY[themeName] || THEME_LIBRARY[AVAILABLE_THEMES[0]];
+  const gameConfig = getConfiguredThemeGameConfig(safeTheme);
 
   activeTheme = safeTheme;
   elements.symbolPool = [...safeTheme.symbols];
@@ -682,63 +553,39 @@ function applyTheme(themeName, elements) {
   elements.machineEyebrow.textContent = safeTheme.machineEyebrow;
   elements.themeFlavor.textContent = safeTheme.flavorText;
   elements.guideText.textContent = safeTheme.guideText;
-  elements.jackpotRule.textContent = `Three ${safeTheme.jackpotSymbol}s: jackpot +${DEFAULT_GAME_CONFIG.jackpotPayout} tokens`;
-  elements.bonusRule.textContent = `Every ${DEFAULT_GAME_CONFIG.bonusThreshold} spins: bonus +${DEFAULT_GAME_CONFIG.bonusReward} tokens`;
+  elements.vaultPrize.textContent = `${gameConfig.bonusReward} tokens`;
+  elements.jackpotRule.textContent = `Three ${safeTheme.jackpotSymbol} icons: jackpot +${gameConfig.jackpotPayout} tokens`;
+  elements.bonusRule.textContent = `Every ${gameConfig.bonusThreshold} spins: vault +${gameConfig.bonusReward} tokens`;
+  elements.setbackRule.textContent = `Pair of ${safeTheme.progressDropSymbol} icons: lose ${gameConfig.progressDropAmount} progress`;
+  elements.resetRule.textContent = `Triple ${safeTheme.progressResetSymbol} icons: reset the vault`;
 
   elements.themeButtons.forEach((button) => {
     button.classList.toggle('is-active', button.dataset.themeOption === safeTheme.key);
   });
 
-  if (!gameState.isSpinning) {
-    syncReelSymbolsToTheme(elements, safeTheme.symbols);
-
-    if (gameState.lastPayout === 0 && gameState.spins === 0) {
-      showResultState(
-        elements,
-        {
-          kind: 'ready',
-          kicker: safeTheme.buttonLabel,
-          value: 'SPIN TO PLAY',
-          caption: safeTheme.readyCaption,
-        },
-        true
-      );
-    }
-  }
-
+  syncReelSymbolsToTheme(elements, safeTheme.symbols);
   renderGameState(gameState, elements);
 }
 
-/**
- * Build the active game configuration, including the current theme jackpot icon.
- *
- * @returns {import('./game-logic.js').GameConfig}
- */
 function getActiveGameConfig() {
+  return getConfiguredThemeGameConfig(activeTheme);
+}
+
+function getConfiguredThemeGameConfig(theme) {
   return {
     ...DEFAULT_GAME_CONFIG,
-    jackpotSymbol: activeTheme.jackpotSymbol,
+    jackpotSymbol: theme.jackpotSymbol,
+    progressDropSymbol: theme.progressDropSymbol,
+    progressResetSymbol: theme.progressResetSymbol,
   };
 }
 
-/**
- * Align the visible reel labels with the current theme before the next spin.
- *
- * @param {AppElements} elements
- * @param {string[]} symbols
- * @returns {void}
- */
 function syncReelSymbolsToTheme(elements, symbols) {
   elements.reelSymbols.forEach((element, index) => {
-    element.textContent = symbols[index % symbols.length];
+    renderReelSymbol(element, symbols[index % symbols.length]);
   });
 }
 
-/**
- * Read the previously selected theme if available.
- *
- * @returns {string}
- */
 function loadStoredTheme() {
   try {
     const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
@@ -748,12 +595,6 @@ function loadStoredTheme() {
   }
 }
 
-/**
- * Save the theme selection without breaking the app if storage is unavailable.
- *
- * @param {string} themeName
- * @returns {void}
- */
 function persistTheme(themeName) {
   try {
     window.localStorage.setItem(THEME_STORAGE_KEY, themeName);
@@ -762,23 +603,12 @@ function persistTheme(themeName) {
   }
 }
 
-/**
- * Collect the theme picker buttons.
- *
- * @returns {HTMLButtonElement[]}
- */
 function getThemeButtons() {
   return Array.from(document.querySelectorAll('[data-theme-option]')).filter(
     (element) => element instanceof HTMLButtonElement
   );
 }
 
-/**
- * Find a required HTML element and fail loudly when it is missing.
- *
- * @param {string} selector
- * @returns {HTMLElement}
- */
 function getRequiredHtmlElement(selector) {
   const element = document.querySelector(selector);
 
@@ -789,12 +619,6 @@ function getRequiredHtmlElement(selector) {
   return element;
 }
 
-/**
- * Find a required button element.
- *
- * @param {string} selector
- * @returns {HTMLButtonElement}
- */
 function getRequiredButton(selector) {
   const element = document.querySelector(selector);
 
@@ -805,12 +629,6 @@ function getRequiredButton(selector) {
   return element;
 }
 
-/**
- * Find a required template element.
- *
- * @param {string} selector
- * @returns {HTMLTemplateElement}
- */
 function getRequiredTemplate(selector) {
   const element = document.querySelector(selector);
 
@@ -820,3 +638,4 @@ function getRequiredTemplate(selector) {
 
   return element;
 }
+
