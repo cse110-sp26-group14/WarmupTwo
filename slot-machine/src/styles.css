@@ -423,6 +423,7 @@ h2 {
   min-height: clamp(10rem, 24vw, 16rem);
   display: grid;
   place-items: center;
+  overflow: hidden;
   padding: clamp(0.75rem, 1.8vw, 1rem);
   border-radius: 28px;
   background: linear-gradient(180deg, var(--reel-face-top) 0%, var(--reel-face-bottom) 100%);
@@ -431,7 +432,8 @@ h2 {
 }
 
 .reel-symbol {
-  width: 100%;
+  width: min(100%, 8.5rem);
+  margin-inline: auto;
   display: grid;
   place-items: center;
   justify-items: center;
@@ -446,7 +448,9 @@ h2 {
 }
 
 .symbol-label {
+  width: 100%;
   max-width: 8ch;
+  margin-inline: auto;
   font-family: "Arial Black", Impact, sans-serif;
   font-size: clamp(0.7rem, 2vw, 1rem);
   line-height: 1.1;
