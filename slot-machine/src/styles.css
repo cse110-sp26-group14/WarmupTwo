@@ -15,7 +15,7 @@
   --machine-accent: rgba(255, 201, 74, 0.72);
   --machine-bg-top: #2b3165;
   --machine-bg-bottom: #23284f;
-  --result-bg: rgba(255, 247, 220, 0.96);
+  --result-bg: rgba(255, 247, 220, 0.98);
   --result-ink: #1d1733;
   --reel-face-top: #fffdf6;
   --reel-face-bottom: #ffe8aa;
@@ -31,7 +31,7 @@ body[data-theme='festival'] {
   --machine-accent: rgba(255, 209, 102, 0.78);
   --machine-bg-top: #3a1764;
   --machine-bg-bottom: #2b1148;
-  --result-bg: rgba(255, 243, 214, 0.97);
+  --result-bg: rgba(255, 243, 214, 0.98);
   --reel-face-top: #fff4d8;
   --reel-face-bottom: #ffd595;
   --reel-border: rgba(255, 209, 102, 0.92);
@@ -46,7 +46,7 @@ body[data-theme='riviera'] {
   --machine-accent: rgba(91, 192, 235, 0.72);
   --machine-bg-top: #0b3142;
   --machine-bg-bottom: #114b5f;
-  --result-bg: rgba(240, 251, 255, 0.97);
+  --result-bg: rgba(240, 251, 255, 0.98);
   --result-ink: #10324a;
   --reel-face-top: #f7fdfd;
   --reel-face-bottom: #d8f2ea;
@@ -62,7 +62,7 @@ body[data-theme='oasis'] {
   --machine-accent: rgba(246, 189, 96, 0.78);
   --machine-bg-top: #4a2a1f;
   --machine-bg-bottom: #5b3924;
-  --result-bg: rgba(255, 245, 230, 0.97);
+  --result-bg: rgba(255, 245, 230, 0.98);
   --reel-face-top: #fff5df;
   --reel-face-bottom: #f0cf95;
   --reel-border: rgba(246, 189, 96, 0.9);
@@ -106,40 +106,16 @@ body::before {
   font-weight: 700;
 }
 
+.top-banner {
+  width: min(980px, calc(100% - 1.5rem));
+  margin: 0 auto;
+  padding: 1.3rem 0 0;
+}
+
 .app-shell {
   width: min(980px, calc(100% - 1.5rem));
   margin: 0 auto;
-  padding: 1.2rem 0 2.5rem;
-  display: grid;
-  gap: 1.2rem;
-}
-
-.top-banner,
-.machine-panel,
-.stat-card,
-.rules-panel,
-.ticker-card,
-.theme-picker {
-  border-radius: 24px;
-  box-shadow: 0 20px 50px var(--shadow);
-}
-
-.top-banner {
-  display: grid;
-  grid-template-columns: 1.6fr 0.9fr;
-  gap: 1rem;
-  padding: 1.25rem;
-  background: rgba(255, 247, 220, 0.94);
-  border: 2px solid rgba(255, 255, 255, 0.45);
-}
-
-.banner-copy {
-  min-width: 0;
-}
-
-.sidebar-stack {
-  display: grid;
-  gap: 0.9rem;
+  padding: 1rem 0 2.5rem;
 }
 
 .eyebrow,
@@ -156,52 +132,129 @@ body::before {
 h1,
 h2,
 h3,
-.price-tag,
 .spin-button,
 .secondary-button,
 .feedback-pill,
 .theme-chip,
-.result-value {
+.result-value,
+.prize-chip strong {
   font-family: "Rockwell", "Arial Black", Impact, sans-serif;
 }
 
 h1 {
-  margin: 0.3rem 0 0.65rem;
-  font-size: clamp(2.2rem, 6vw, 4.4rem);
-  line-height: 0.95;
+  margin: 0.2rem 0 0.55rem;
+  font-size: clamp(2.4rem, 6vw, 4.6rem);
+  line-height: 0.94;
+  color: #fff7e9;
+}
+
+h2 {
+  margin: 0.25rem 0 0;
+  font-size: clamp(1.8rem, 4vw, 3.2rem);
 }
 
 .intro,
 .guide-text,
-.result-caption,
-.theme-flavor {
+.theme-flavor,
+.result-caption {
   margin: 0;
   line-height: 1.5;
-  color: var(--soft-ink);
+  color: rgba(255, 247, 233, 0.84);
 }
 
-.quick-guide,
-.theme-picker {
-  padding: 1rem;
+.machine-panel,
+.side-card,
+.ticker-card,
+.prize-chip {
+  border-radius: 24px;
+  box-shadow: 0 20px 50px var(--shadow);
+}
+
+.machine-panel {
+  position: relative;
+  overflow: hidden;
+  padding: 1.25rem;
+  color: #fffaf0;
+  background:
+    radial-gradient(circle at top, rgba(255, 201, 74, 0.32), transparent 24%),
+    linear-gradient(180deg, var(--machine-bg-top) 0%, var(--machine-bg-bottom) 100%);
+  border: 4px solid var(--machine-accent);
+}
+
+.machine-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0.85rem;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(29, 23, 51, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  pointer-events: none;
 }
 
-.quick-guide {
-  background: linear-gradient(180deg, rgba(68, 200, 245, 0.12), rgba(255, 140, 66, 0.12));
+.cabinet-top,
+.cabinet-bottom {
+  position: relative;
+  z-index: 1;
+}
+
+.cabinet-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.cabinet-prizes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.prize-chip {
+  min-width: 8.5rem;
+  padding: 0.9rem 1rem;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  text-align: center;
+}
+
+.prize-chip span {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+
+.prize-chip strong {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 1.1rem;
+}
+
+.cabinet-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 0.95fr 1.4fr 0.95fr;
+  gap: 1rem;
+}
+
+.cabinet-side,
+.machine-core {
+  display: grid;
+  gap: 1rem;
+}
+
+.side-card {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .theme-options {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.55rem;
-  margin-top: 0.75rem;
-}
-
-.theme-flavor {
-  margin-top: 0.8rem;
-  min-height: 3rem;
+  gap: 0.6rem;
+  margin-top: 0.85rem;
 }
 
 .theme-chip {
@@ -210,9 +263,10 @@ h1 {
   border-radius: 16px;
   color: #fffdf7;
   cursor: pointer;
-  padding: 0.7rem 0.6rem;
-  font-size: 0.86rem;
-  transition: transform 160ms ease, box-shadow 160ms ease, outline-color 160ms ease;
+  padding: 0.75rem 0.85rem;
+  text-align: left;
+  font-size: 0.95rem;
+  transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
 .theme-chip[data-theme-option='festival'] {
@@ -235,55 +289,7 @@ h1 {
 .theme-chip.is-active {
   outline: 3px solid rgba(255, 255, 255, 0.9);
   outline-offset: 2px;
-  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.2);
-}
-
-.machine-panel {
-  position: relative;
-  overflow: hidden;
-  padding: 1.2rem;
-  color: #fffaf0;
-  background:
-    radial-gradient(circle at top, rgba(255, 201, 74, 0.32), transparent 26%),
-    linear-gradient(180deg, var(--machine-bg-top) 0%, var(--machine-bg-bottom) 100%);
-  border: 3px solid var(--machine-accent);
-}
-
-.machine-panel::before {
-  content: "";
-  position: absolute;
-  inset: 0.7rem;
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  pointer-events: none;
-}
-
-.machine-topper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.3rem 0.3rem 1rem;
-}
-
-.machine-topper h2 {
-  margin: 0.25rem 0 0;
-  font-size: clamp(1.7rem, 4vw, 3.2rem);
-}
-
-.price-tag {
-  padding: 0.85rem 1rem;
-  border-radius: 999px;
-  background: linear-gradient(180deg, var(--orange), #ff6c3f);
-  color: #fffdf7;
-  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.16);
-}
-
-.machine-body {
-  position: relative;
-  display: grid;
-  gap: 1rem;
+  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.22);
 }
 
 .feedback-row {
@@ -328,7 +334,7 @@ h1 {
 .bonus-cluster {
   display: grid;
   gap: 0.55rem;
-  padding: 0.9rem 1rem;
+  padding: 0.95rem 1rem;
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -385,8 +391,7 @@ h1 {
 }
 
 .reel-stage {
-  display: grid;
-  gap: 0;
+  position: relative;
 }
 
 .reels {
@@ -396,7 +401,7 @@ h1 {
 }
 
 .reel-window {
-  min-height: 14rem;
+  min-height: 16rem;
   display: grid;
   place-items: center;
   padding: 1rem;
@@ -407,71 +412,68 @@ h1 {
 }
 
 .reel-symbol {
-  display: inline-block;
+  display: grid;
+  place-items: center;
+  gap: 0.45rem;
   text-align: center;
+}
+
+.symbol-icon {
+  font-size: clamp(2.6rem, 7vw, 5rem);
+  line-height: 1;
+}
+
+.symbol-label {
   font-family: "Arial Black", Impact, sans-serif;
-  font-size: clamp(2rem, 6vw, 4.2rem);
-  line-height: 0.92;
-  letter-spacing: 0.04em;
+  font-size: clamp(0.7rem, 2vw, 1rem);
+  line-height: 1.1;
+  letter-spacing: 0.14em;
   color: var(--reel-ink);
-  text-shadow: 0 4px 0 rgba(255, 255, 255, 0.38);
 }
 
 .reel-symbol.spinning {
   animation: shakeLabel 160ms linear infinite;
 }
 
-.result-burst {
-  position: relative;
-  z-index: 1;
-  width: min(38rem, calc(100% - 2rem));
-  margin: -1.2rem auto 0;
-  padding: 1rem 1.2rem 1.1rem;
-  text-align: center;
-  border-radius: 24px;
-  background: var(--result-bg);
-  color: var(--result-ink);
-  border: 3px solid rgba(255, 255, 255, 0.45);
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.26);
-  overflow: hidden;
-}
-
-.result-burst::after {
-  content: "";
+.result-overlay {
   position: absolute;
-  inset: auto -25% -60% 35%;
-  height: 7rem;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.34), transparent 60%);
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0;
   pointer-events: none;
 }
 
-.result-burst.ready {
-  background: rgba(255, 247, 220, 0.95);
+.result-overlay.visible {
+  opacity: 1;
 }
 
-.result-burst.spinning {
-  background: rgba(220, 244, 255, 0.96);
+.result-overlay-card {
+  width: min(30rem, calc(100% - 1.5rem));
+  padding: 1rem 1.15rem 1.1rem;
+  border-radius: 24px;
+  text-align: center;
+  background: var(--result-bg);
+  color: var(--result-ink);
+  border: 3px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.3);
 }
 
-.result-burst.win {
+.result-overlay.visible .result-overlay-card {
+  animation: resultPop 420ms ease;
+}
+
+.result-overlay-card.win {
   background: rgba(221, 255, 231, 0.98);
 }
 
-.result-burst.loss {
+.result-overlay-card.loss {
   background: rgba(255, 237, 186, 0.97);
 }
 
-.result-burst.bonus,
-.result-burst.jackpot {
+.result-overlay-card.bonus,
+.result-overlay-card.jackpot {
   background: linear-gradient(135deg, rgba(255, 240, 196, 0.98), rgba(255, 214, 247, 0.98));
-}
-
-.result-burst.cashout {
-  background: rgba(255, 236, 214, 0.98);
-}
-
-.result-burst.is-animating {
-  animation: resultPop 420ms ease;
 }
 
 .result-kicker {
@@ -481,14 +483,9 @@ h1 {
 
 .result-value {
   display: block;
-  font-size: clamp(1.8rem, 6vw, 3.5rem);
+  font-size: clamp(1.8rem, 6vw, 3.4rem);
   line-height: 0.96;
-  margin-bottom: 0.4rem;
-}
-
-.result-caption {
-  max-width: 28rem;
-  margin: 0 auto;
+  margin-bottom: 0.45rem;
 }
 
 .controls {
@@ -551,48 +548,26 @@ h1 {
   line-height: 1.45;
 }
 
-.ticker-grid {
-  display: grid;
-  gap: 0.85rem;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.ticker-card {
-  padding: 0.9rem 1rem;
-  background: rgba(255, 255, 255, 0.09);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.info-grid {
-  display: grid;
-  grid-template-columns: 1.4fr 1fr;
-  gap: 1rem;
-}
-
 .scoreboard {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.stat-card,
-.rules-panel {
-  padding: 1rem;
-  background: rgba(255, 247, 220, 0.95);
-  border: 2px solid rgba(255, 255, 255, 0.38);
+  gap: 0.8rem;
 }
 
 .stat-card {
   display: grid;
   gap: 0.4rem;
+  padding: 0.95rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .stat-value {
-  font-size: clamp(2rem, 4vw, 3rem);
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
 }
 
 .stat-note {
-  color: var(--soft-ink);
+  color: rgba(255, 247, 233, 0.72);
   line-height: 1.35;
 }
 
@@ -604,6 +579,19 @@ h1 {
   margin: 0.85rem 0 0;
   padding-left: 1.2rem;
   line-height: 1.55;
+}
+
+.ticker-grid {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 1rem;
+}
+
+.ticker-card {
+  padding: 0.9rem 1rem;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .toast-stack {
@@ -663,7 +651,7 @@ h1 {
 }
 
 @keyframes resultPop {
-  0% { transform: translateY(16px) scale(0.92); opacity: 0.2; }
+  0% { transform: translateY(18px) scale(0.9); opacity: 0.1; }
   55% { transform: translateY(-4px) scale(1.03); opacity: 1; }
   100% { transform: translateY(0) scale(1); opacity: 1; }
 }
@@ -678,29 +666,29 @@ h1 {
   to { background-position: 48px 0; }
 }
 
-@media (max-width: 860px) {
-  .top-banner,
-  .info-grid,
-  .feedback-row,
-  .ticker-grid,
-  .scoreboard,
-  .reels,
-  .theme-options {
+@media (max-width: 960px) {
+  .cabinet-grid {
     grid-template-columns: 1fr;
   }
 
-  .machine-topper {
+  .cabinet-top {
     flex-direction: column;
     align-items: flex-start;
   }
+}
 
-  .reel-window {
-    min-height: 9rem;
+@media (max-width: 860px) {
+  .reels,
+  .ticker-grid {
+    grid-template-columns: 1fr;
   }
 
-  .result-burst {
-    width: calc(100% - 1rem);
-    margin-top: -0.8rem;
+  .feedback-row {
+    grid-template-columns: 1fr;
+  }
+
+  .reel-window {
+    min-height: 10rem;
   }
 }
 

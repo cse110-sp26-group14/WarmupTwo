@@ -40,7 +40,7 @@ test('startSpin deducts tokens and blocks unaffordable spins', () => {
   }, /Not enough tokens to spin/);
 });
 
-test('finishSpin applies pair payouts and the long bonus reward', () => {
+test('finishSpin applies pair payouts and the longer vault reward', () => {
   const startingState = createInitialGameState({
     wallet: 10,
     spins: DEFAULT_GAME_CONFIG.bonusThreshold - 1,
@@ -51,11 +51,29 @@ test('finishSpin applies pair payouts and the long bonus reward', () => {
 
   assert.equal(resolution.outcome.payout, DEFAULT_GAME_CONFIG.pairPayout);
   assert.equal(resolution.bonusAwarded, DEFAULT_GAME_CONFIG.bonusReward);
-  assert.equal(resolution.nextState.wallet, 88);
-  assert.equal(resolution.nextState.won, 81);
+  assert.equal(resolution.nextState.wallet, 163);
+  assert.equal(resolution.nextState.won, 156);
   assert.equal(resolution.nextState.spins, DEFAULT_GAME_CONFIG.bonusThreshold);
   assert.equal(resolution.nextState.bonusProgress, 0);
-  assert.equal(resolution.nextState.lastPayout, 81);
+  assert.equal(resolution.nextState.lastPayout, 156);
+});
+
+test('pairing the drop symbol decreases vault progress', () => {
+  const paidSpinState = startSpin(createInitialGameState({ wallet: 30, bonusProgress: 10 }));
+  const resolution = finishSpin(paidSpinState, ['MASK', 'MASK', 'KOI']);
+
+  assert.equal(resolution.outcome.kind, 'loss');
+  assert.equal(resolution.progressLost, 4);
+  assert.equal(resolution.nextState.bonusProgress, 7);
+});
+
+test('triple reset symbol wipes the vault meter', () => {
+  const paidSpinState = startSpin(createInitialGameState({ wallet: 30, bonusProgress: 12 }));
+  const resolution = finishSpin(paidSpinState, ['MASK', 'MASK', 'MASK']);
+
+  assert.equal(resolution.outcome.resetsProgress, true);
+  assert.equal(resolution.progressLost, 13);
+  assert.equal(resolution.nextState.bonusProgress, 0);
 });
 
 test('finishSpin applies the comeback refill when the wallet is drained', () => {
