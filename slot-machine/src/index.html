@@ -23,18 +23,21 @@
       <div class="sidebar-stack">
         <aside class="quick-guide" aria-label="How to play">
           <p class="mini-label">How to play</p>
-          <p class="guide-text">
-            Each spin costs 3 tokens. Match symbols to win. Every 5 spins, the machine gives you a bonus pack.
+          <p class="guide-text" id="guideText">
+            Each spin costs 3 tokens. Match symbols to win. The bonus meter is a long climb, but the payout is worth it.
           </p>
         </aside>
 
         <section class="theme-picker" aria-label="Theme selector">
-          <p class="mini-label">Pick a vibe</p>
+          <p class="mini-label">Pick a setting</p>
           <div class="theme-options">
-            <button class="theme-chip" data-theme-option="sunset" type="button">Solar Pop</button>
-            <button class="theme-chip" data-theme-option="midnight" type="button">Neon Night</button>
-            <button class="theme-chip" data-theme-option="mint" type="button">Mint Panic</button>
+            <button class="theme-chip" data-theme-option="festival" type="button">Lantern Festival</button>
+            <button class="theme-chip" data-theme-option="riviera" type="button">Riviera Postcards</button>
+            <button class="theme-chip" data-theme-option="oasis" type="button">Oasis Caravan</button>
           </div>
+          <p class="theme-flavor" id="themeFlavor">
+            Lanterns, koi, drums, and a lucky-gate jackpot.
+          </p>
         </section>
       </div>
     </header>
@@ -42,8 +45,8 @@
     <section class="machine-panel" aria-labelledby="machineTitle">
       <div class="machine-topper">
         <div>
-          <p class="mini-label">Center Stage</p>
-          <h2 id="machineTitle">Friendly Hype Spinner</h2>
+          <p class="mini-label" id="machineEyebrow">Center Stage</p>
+          <h2 id="machineTitle">Lantern Festival Spinner</h2>
         </div>
         <div class="price-tag">3 tokens per spin</div>
       </div>
@@ -54,10 +57,10 @@
 
           <div class="bonus-cluster" id="bonusCluster" aria-live="polite">
             <div class="bonus-copy">
-              <span class="bonus-label">Bonus meter</span>
-              <strong id="bonusText">0 / 5 spins</strong>
+              <span class="bonus-label">Jackpot climb</span>
+              <strong id="bonusText">0 / 15 spins</strong>
             </div>
-            <p class="bonus-alert" id="bonusAlert">Five spins until bonus drop.</p>
+            <p class="bonus-alert" id="bonusAlert">Fifteen spins until the bonus vault opens.</p>
             <div class="bonus-track" aria-hidden="true">
               <div class="bonus-fill" id="bonusFill"></div>
             </div>
@@ -66,9 +69,9 @@
 
         <div class="reel-stage">
           <div class="reels" aria-live="polite">
-            <div class="reel-window"><span class="reel-symbol" id="reel0">PROMPT</span></div>
-            <div class="reel-window"><span class="reel-symbol" id="reel1">GPU</span></div>
-            <div class="reel-window"><span class="reel-symbol" id="reel2">HYPE</span></div>
+            <div class="reel-window"><span class="reel-symbol" id="reel0">LANTERN</span></div>
+            <div class="reel-window"><span class="reel-symbol" id="reel1">KOI</span></div>
+            <div class="reel-window"><span class="reel-symbol" id="reel2">DRUM</span></div>
           </div>
 
           <div class="result-burst ready" id="resultBurst" aria-live="polite" aria-atomic="true">
@@ -132,8 +135,8 @@
         <ul>
           <li>Match 2 symbols: +6 tokens</li>
           <li>Match 3 symbols: +18 tokens</li>
-          <li>Three BOTs: jackpot +30 tokens</li>
-          <li>Every 5 spins: bonus +8 tokens</li>
+          <li id="jackpotRule">Three LANTERNs: jackpot +30 tokens</li>
+          <li id="bonusRule">Every 15 spins: bonus +75 tokens</li>
           <li>If your wallet gets too low, the machine tosses you 12 comeback tokens</li>
         </ul>
       </aside>

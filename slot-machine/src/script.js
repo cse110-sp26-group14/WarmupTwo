@@ -1,6 +1,5 @@
 import {
   DEFAULT_GAME_CONFIG,
-  SLOT_SYMBOLS,
   canAffordSpin,
   createInitialGameState,
   finishSpin,
@@ -14,7 +13,57 @@ const REEL_TICK_INTERVAL_MS = 90;
 const TOAST_DURATION_MS = 1800;
 const PANEL_EFFECT_DURATION_MS = 550;
 const THEME_STORAGE_KEY = 'token-furnace-theme';
-const AVAILABLE_THEMES = Object.freeze(['sunset', 'midnight', 'mint']);
+
+const THEME_LIBRARY = Object.freeze({
+  festival: {
+    key: 'festival',
+    buttonLabel: 'Lantern Festival',
+    machineTitle: 'Lantern Festival Spinner',
+    machineEyebrow: 'Festival lights',
+    flavorText: 'Lanterns, koi, drums, and a lucky-gate jackpot.',
+    guideText: 'Spin through lanterns and festival charms. The bonus meter takes 15 spins to fill, but it drops 75 tokens when it hits.',
+    readyCaption: 'Festival lanterns are glowing. The lucky gate is waiting.',
+    symbols: ['LANTERN', 'KOI', 'DRUM', 'FAN', 'MASK', 'TORII', 'MOCHI', 'LUCK'],
+    jackpotSymbol: 'LANTERN',
+  },
+  riviera: {
+    key: 'riviera',
+    buttonLabel: 'Riviera Postcards',
+    machineTitle: 'Riviera Postcard Spinner',
+    machineEyebrow: 'Coastal table',
+    flavorText: 'Sun-washed tiles, olive branches, and postcard-blue water.',
+    guideText: 'Spin through seaside icons and postcard colors. The bonus meter takes 15 spins to fill, but it drops 75 tokens when it hits.',
+    readyCaption: 'The coast is calm, the tiles are bright, and the lemons look suspiciously lucky.',
+    symbols: ['OLIVE', 'TILE', 'LEMON', 'WAVE', 'SUN', 'SHELL', 'SAIL', 'COAST'],
+    jackpotSymbol: 'SUN',
+  },
+  oasis: {
+    key: 'oasis',
+    buttonLabel: 'Oasis Caravan',
+    machineTitle: 'Oasis Caravan Spinner',
+    machineEyebrow: 'Desert route',
+    flavorText: 'Palm shade, lantern glow, and a jackpot hidden beyond the dunes.',
+    guideText: 'Spin through desert icons and warm golds. The bonus meter takes 15 spins to fill, but it drops 75 tokens when it hits.',
+    readyCaption: 'The caravan is parked, the lamps are lit, and the desert jackpot is in range.',
+    symbols: ['PALM', 'DUNE', 'LAMP', 'STAR', 'OASIS', 'FALCON', 'DATE', 'MOON'],
+    jackpotSymbol: 'LAMP',
+  },
+});
+
+const AVAILABLE_THEMES = Object.freeze(Object.keys(THEME_LIBRARY));
+
+/**
+ * @typedef {Object} ThemeDefinition
+ * @property {string} key
+ * @property {string} buttonLabel
+ * @property {string} machineTitle
+ * @property {string} machineEyebrow
+ * @property {string} flavorText
+ * @property {string} guideText
+ * @property {string} readyCaption
+ * @property {string[]} symbols
+ * @property {string} jackpotSymbol
+ */
 
 /**
  * @typedef {Object} AppElements
@@ -41,11 +90,19 @@ const AVAILABLE_THEMES = Object.freeze(['sunset', 'midnight', 'mint']);
  * @property {HTMLElement} resultKicker
  * @property {HTMLElement} resultValue
  * @property {HTMLElement} resultCaption
+ * @property {HTMLElement} machineTitle
+ * @property {HTMLElement} machineEyebrow
+ * @property {HTMLElement} themeFlavor
+ * @property {HTMLElement} guideText
+ * @property {HTMLElement} jackpotRule
+ * @property {HTMLElement} bonusRule
  * @property {HTMLButtonElement[]} themeButtons
  * @property {string[]} symbolPool
  */
 
 let gameState = createInitialGameState();
+/** @type {ThemeDefinition} */
+let activeTheme = THEME_LIBRARY.festival;
 
 initializeApp();
 
@@ -64,9 +121,9 @@ function initializeApp() {
       elements,
       {
         kind: 'ready',
-        kicker: 'Next up',
+        kicker: activeTheme.buttonLabel,
         value: 'SPIN TO PLAY',
-        caption: 'The machine saves the loud part for the result.',
+        caption: activeTheme.readyCaption,
       },
       false
     );
@@ -109,8 +166,14 @@ function createAppElements() {
     resultKicker: getRequiredHtmlElement('#resultKicker'),
     resultValue: getRequiredHtmlElement('#resultValue'),
     resultCaption: getRequiredHtmlElement('#resultCaption'),
+    machineTitle: getRequiredHtmlElement('#machineTitle'),
+    machineEyebrow: getRequiredHtmlElement('#machineEyebrow'),
+    themeFlavor: getRequiredHtmlElement('#themeFlavor'),
+    guideText: getRequiredHtmlElement('#guideText'),
+    jackpotRule: getRequiredHtmlElement('#jackpotRule'),
+    bonusRule: getRequiredHtmlElement('#bonusRule'),
     themeButtons: getThemeButtons(),
-    symbolPool: [...SLOT_SYMBOLS],
+    symbolPool: [...activeTheme.symbols],
   };
 }
 
@@ -131,6 +194,10 @@ function attachEventListeners(elements) {
 
   elements.themeButtons.forEach((button) => {
     button.addEventListener('click', () => {
+      if (gameState.isSpinning) {
+        return;
+      }
+
       applyTheme(button.dataset.themeOption || AVAILABLE_THEMES[0], elements);
     });
   });
@@ -144,19 +211,21 @@ function attachEventListeners(elements) {
  * @returns {void}
  */
 function renderGameState(state, elements) {
+  const gameConfig = getActiveGameConfig();
+
   elements.walletCount.textContent = String(state.wallet);
   elements.spentCount.textContent = String(state.spent);
   elements.wonCount.textContent = String(state.won);
   elements.streakCount.textContent = `${state.streak} ${state.streak === 1 ? 'win' : 'wins'}`;
   elements.spinCount.textContent = String(state.spins);
   elements.lastPayout.textContent = `${state.lastPayout} tokens`;
-  elements.moodText.textContent = getMoodText(state, DEFAULT_GAME_CONFIG);
+  elements.moodText.textContent = getMoodText(state, gameConfig);
   elements.feedbackPill.textContent = state.feedbackText;
   elements.feedbackPill.className = `feedback-pill ${state.feedbackKind}`;
-  elements.bonusText.textContent = `${state.bonusProgress} / ${DEFAULT_GAME_CONFIG.bonusThreshold} spins`;
-  elements.bonusFill.style.width = `${(state.bonusProgress / DEFAULT_GAME_CONFIG.bonusThreshold) * 100}%`;
-  updateBonusMeterState(state, elements);
-  elements.spinButton.disabled = state.isSpinning || !canAffordSpin(state.wallet, DEFAULT_GAME_CONFIG);
+  elements.bonusText.textContent = `${state.bonusProgress} / ${gameConfig.bonusThreshold} spins`;
+  elements.bonusFill.style.width = `${(state.bonusProgress / gameConfig.bonusThreshold) * 100}%`;
+  updateBonusMeterState(state, elements, gameConfig);
+  elements.spinButton.disabled = state.isSpinning || !canAffordSpin(state.wallet, gameConfig);
   elements.cashOutButton.disabled = state.isSpinning;
 }
 
@@ -167,14 +236,16 @@ function renderGameState(state, elements) {
  * @returns {Promise<void>}
  */
 async function handleSpinClick(elements) {
-  if (gameState.isSpinning || !canAffordSpin(gameState.wallet, DEFAULT_GAME_CONFIG)) {
+  const gameConfig = getActiveGameConfig();
+
+  if (gameState.isSpinning || !canAffordSpin(gameState.wallet, gameConfig)) {
     return;
   }
 
   const previousState = gameState;
 
   try {
-    const paidSpinState = startSpin(gameState, DEFAULT_GAME_CONFIG);
+    const paidSpinState = startSpin(gameState, gameConfig);
 
     gameState = {
       ...paidSpinState,
@@ -188,16 +259,16 @@ async function handleSpinClick(elements) {
       elements,
       {
         kind: 'spinning',
-        kicker: 'Spinning',
+        kicker: activeTheme.buttonLabel,
         value: 'REELS IN MOTION',
-        caption: 'This is where the machine pretends to think.',
+        caption: `The ${activeTheme.machineTitle.toLowerCase()} is shuffling its symbols.`,
       },
       true
     );
     renderGameState(gameState, elements);
 
     const reelSymbols = await spinAllReels(elements);
-    const resolution = finishSpin(gameState, reelSymbols, DEFAULT_GAME_CONFIG);
+    const resolution = finishSpin(gameState, reelSymbols, gameConfig);
 
     gameState = {
       ...resolution.nextState,
@@ -206,7 +277,7 @@ async function handleSpinClick(elements) {
     };
 
     playSpinEffects(resolution, elements);
-    showResultState(elements, getResultStateForSpin(resolution), true);
+    showResultState(elements, getResultStateForSpin(resolution, gameConfig), true);
     setStatusMessage(elements, resolution.statusMessage);
   } catch (error) {
     console.error('The spin action failed.', error);
@@ -243,7 +314,7 @@ function handleCashOutClick(elements) {
     return;
   }
 
-  const resolution = resolveCashOut(gameState, DEFAULT_GAME_CONFIG);
+  const resolution = resolveCashOut(gameState, getActiveGameConfig());
 
   gameState = {
     ...resolution.nextState,
@@ -337,19 +408,22 @@ function playSpinEffects(resolution, elements) {
  *
  * @param {ReturnType<typeof createInitialGameState>} state
  * @param {AppElements} elements
+ * @param {import('./game-logic.js').GameConfig} gameConfig
  * @returns {void}
  */
-function updateBonusMeterState(state, elements) {
-  const remainingSpins = Math.max(0, DEFAULT_GAME_CONFIG.bonusThreshold - state.bonusProgress);
-  elements.bonusCluster.classList.remove('heated', 'imminent');
+function updateBonusMeterState(state, elements, gameConfig) {
+  const remainingSpins = Math.max(0, gameConfig.bonusThreshold - state.bonusProgress);
+  elements.bonusCluster.classList.remove('warm', 'heated', 'imminent');
 
-  if (remainingSpins === 1) {
+  if (remainingSpins <= 1) {
     elements.bonusCluster.classList.add('imminent');
-  } else if (remainingSpins === 2) {
+  } else if (remainingSpins <= 3) {
     elements.bonusCluster.classList.add('heated');
+  } else if (remainingSpins <= 6) {
+    elements.bonusCluster.classList.add('warm');
   }
 
-  elements.bonusAlert.textContent = getBonusAlertText(state, remainingSpins);
+  elements.bonusAlert.textContent = getBonusAlertText(state, remainingSpins, gameConfig);
 }
 
 /**
@@ -357,22 +431,27 @@ function updateBonusMeterState(state, elements) {
  *
  * @param {ReturnType<typeof createInitialGameState>} state
  * @param {number} remainingSpins
+ * @param {import('./game-logic.js').GameConfig} gameConfig
  * @returns {string}
  */
-function getBonusAlertText(state, remainingSpins) {
+function getBonusAlertText(state, remainingSpins, gameConfig) {
   if (remainingSpins === 1) {
-    return 'One more spin triggers the bonus drop.';
+    return `One more spin opens the ${gameConfig.bonusReward}-token vault.`;
   }
 
-  if (remainingSpins === 2) {
-    return 'Two spins left. The machine is getting twitchy.';
+  if (remainingSpins <= 3) {
+    return `${remainingSpins} spins left. The meter is almost at ${gameConfig.bonusReward} tokens.`;
+  }
+
+  if (remainingSpins <= 6) {
+    return `${remainingSpins} spins left. The vault is finally getting close.`;
   }
 
   if (state.spins === 0 || state.bonusProgress > 0) {
-    return `${remainingSpins} spins until bonus drop.`;
+    return `${remainingSpins} spins until the ${gameConfig.bonusReward}-token bonus vault opens.`;
   }
 
-  return 'Meter reset. Five spins until the next bonus drop.';
+  return `Meter reset. ${gameConfig.bonusThreshold} spins until the next ${gameConfig.bonusReward}-token drop.`;
 }
 
 /**
@@ -411,13 +490,14 @@ function getFeedbackTextForSpin(resolution) {
  * Create the explicit result display for a completed spin.
  *
  * @param {import('./game-logic.js').SpinResolution} resolution
+ * @param {import('./game-logic.js').GameConfig} gameConfig
  * @returns {{ kind: string, kicker: string, value: string, caption: string }}
  */
-function getResultStateForSpin(resolution) {
-  if (resolution.outcome.payout === DEFAULT_GAME_CONFIG.jackpotPayout) {
+function getResultStateForSpin(resolution, gameConfig) {
+  if (resolution.outcome.payout === gameConfig.jackpotPayout) {
     return {
       kind: 'jackpot',
-      kicker: 'Jackpot',
+      kicker: `${activeTheme.jackpotSymbol} jackpot`,
       value: `+${resolution.outcome.payout} TOKENS`,
       caption: resolution.statusMessage,
     };
@@ -426,7 +506,7 @@ function getResultStateForSpin(resolution) {
   if (resolution.bonusAwarded > 0) {
     return {
       kind: 'bonus',
-      kicker: 'Bonus drop',
+      kicker: 'Bonus vault',
       value: `+${resolution.totalPayout} TOKENS`,
       caption: resolution.statusMessage,
     };
@@ -435,7 +515,7 @@ function getResultStateForSpin(resolution) {
   if (resolution.outcome.payout > 0) {
     return {
       kind: 'win',
-      kicker: 'Win',
+      kicker: activeTheme.buttonLabel,
       value: `+${resolution.outcome.payout} TOKENS`,
       caption: resolution.statusMessage,
     };
@@ -452,7 +532,7 @@ function getResultStateForSpin(resolution) {
 
   return {
     kind: 'loss',
-    kicker: 'Miss',
+    kicker: activeTheme.buttonLabel,
     value: 'NO MATCH',
     caption: resolution.statusMessage,
   };
@@ -591,12 +671,66 @@ function pickRandomSymbol(symbolPool) {
  * @returns {void}
  */
 function applyTheme(themeName, elements) {
-  const safeTheme = AVAILABLE_THEMES.includes(themeName) ? themeName : AVAILABLE_THEMES[0];
-  document.body.dataset.theme = safeTheme;
-  persistTheme(safeTheme);
+  const safeTheme = THEME_LIBRARY[themeName] || THEME_LIBRARY[AVAILABLE_THEMES[0]];
+
+  activeTheme = safeTheme;
+  elements.symbolPool = [...safeTheme.symbols];
+  document.body.dataset.theme = safeTheme.key;
+  persistTheme(safeTheme.key);
+
+  elements.machineTitle.textContent = safeTheme.machineTitle;
+  elements.machineEyebrow.textContent = safeTheme.machineEyebrow;
+  elements.themeFlavor.textContent = safeTheme.flavorText;
+  elements.guideText.textContent = safeTheme.guideText;
+  elements.jackpotRule.textContent = `Three ${safeTheme.jackpotSymbol}s: jackpot +${DEFAULT_GAME_CONFIG.jackpotPayout} tokens`;
+  elements.bonusRule.textContent = `Every ${DEFAULT_GAME_CONFIG.bonusThreshold} spins: bonus +${DEFAULT_GAME_CONFIG.bonusReward} tokens`;
 
   elements.themeButtons.forEach((button) => {
-    button.classList.toggle('is-active', button.dataset.themeOption === safeTheme);
+    button.classList.toggle('is-active', button.dataset.themeOption === safeTheme.key);
+  });
+
+  if (!gameState.isSpinning) {
+    syncReelSymbolsToTheme(elements, safeTheme.symbols);
+
+    if (gameState.lastPayout === 0 && gameState.spins === 0) {
+      showResultState(
+        elements,
+        {
+          kind: 'ready',
+          kicker: safeTheme.buttonLabel,
+          value: 'SPIN TO PLAY',
+          caption: safeTheme.readyCaption,
+        },
+        true
+      );
+    }
+  }
+
+  renderGameState(gameState, elements);
+}
+
+/**
+ * Build the active game configuration, including the current theme jackpot icon.
+ *
+ * @returns {import('./game-logic.js').GameConfig}
+ */
+function getActiveGameConfig() {
+  return {
+    ...DEFAULT_GAME_CONFIG,
+    jackpotSymbol: activeTheme.jackpotSymbol,
+  };
+}
+
+/**
+ * Align the visible reel labels with the current theme before the next spin.
+ *
+ * @param {AppElements} elements
+ * @param {string[]} symbols
+ * @returns {void}
+ */
+function syncReelSymbolsToTheme(elements, symbols) {
+  elements.reelSymbols.forEach((element, index) => {
+    element.textContent = symbols[index % symbols.length];
   });
 }
 

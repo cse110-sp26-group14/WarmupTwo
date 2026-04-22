@@ -55,25 +55,25 @@
  */
 
 export const SLOT_SYMBOLS = Object.freeze([
-  'PROMPT',
-  'GPU',
-  'HYPE',
-  'BOT',
-  'PIVOT',
-  'SLIDE',
-  'VIBE',
-  'TOKEN',
+  'LANTERN',
+  'KOI',
+  'DRUM',
+  'FAN',
+  'MASK',
+  'TORII',
+  'MOCHI',
+  'LUCK',
 ]);
 
 export const DEFAULT_GAME_CONFIG = Object.freeze({
   spinCost: 3,
   pityRefill: 12,
-  bonusThreshold: 5,
-  bonusReward: 8,
+  bonusThreshold: 15,
+  bonusReward: 75,
   pairPayout: 6,
   triplePayout: 18,
   jackpotPayout: 30,
-  jackpotSymbol: 'BOT',
+  jackpotSymbol: 'LANTERN',
   reelCount: 3,
 });
 
@@ -195,7 +195,7 @@ export function evaluateSpinResult(reelSymbols, config = DEFAULT_GAME_CONFIG) {
   if (tripleSymbol === config.jackpotSymbol) {
     return {
       payout: config.jackpotPayout,
-      message: 'Three BOTs. The machine says that counts as fully automated fun.',
+      message: `Triple ${tripleSymbol}. Theme jackpot.`,
       kind: 'win',
     };
   }
