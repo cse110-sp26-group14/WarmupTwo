@@ -21,18 +21,21 @@ const THEME_AUDIO_LIBRARY = Object.freeze({
     scale: [0, 4, 7, 12],
     waveType: 'triangle',
     accentWaveType: 'sine',
+    ambientPattern: [0, 7, 4, 9],
   },
   riviera: {
     baseFrequency: 330,
     scale: [0, 3, 7, 10],
     waveType: 'sine',
     accentWaveType: 'triangle',
+    ambientPattern: [0, 5, 7, 10],
   },
   oasis: {
     baseFrequency: 294,
     scale: [0, 2, 5, 9],
     waveType: 'triangle',
     accentWaveType: 'sine',
+    ambientPattern: [0, 3, 7, 12],
   },
 });
 
@@ -679,6 +682,8 @@ function createAudioEngine() {
   /** @type {AudioContext | null} */
   let context = null;
   let themeKey = AVAILABLE_THEMES[0];
+  let ambientTimerId = null;
+  let ambientThemeKey = null;
 
   function ensureContext() {
     if (typeof window.AudioContext === 'undefined' && typeof window.webkitAudioContext === 'undefined') {
@@ -696,11 +701,15 @@ function createAudioEngine() {
   function unlock() {
     const audioContext = ensureContext();
 
-    if (!audioContext || audioContext.state === 'running') {
+    if (!audioContext) {
       return;
     }
 
-    void audioContext.resume();
+    if (audioContext.state !== 'running') {
+      void audioContext.resume();
+    }
+
+    playAmbient(themeKey);
   }
 
   function setTheme(nextThemeKey) {
@@ -766,8 +775,61 @@ function createAudioEngine() {
     });
   }
 
+  function stopAmbient() {
+    if (ambientTimerId !== null) {
+      window.clearInterval(ambientTimerId);
+      ambientTimerId = null;
+    }
+  }
+
+  function playAmbient(nextThemeKey = themeKey) {
+    const audioContext = ensureContext();
+
+    if (!audioContext || audioContext.state !== 'running') {
+      return;
+    }
+
+    if (ambientThemeKey === nextThemeKey && ambientTimerId !== null) {
+      return;
+    }
+
+    stopAmbient();
+    ambientThemeKey = nextThemeKey;
+    const profile = getProfile(nextThemeKey);
+    let stepIndex = 0;
+
+    const pulseAmbient = () => {
+      const root = profile.ambientPattern[stepIndex % profile.ambientPattern.length];
+      const harmony = profile.ambientPattern[(stepIndex + 2) % profile.ambientPattern.length];
+
+      playTone({
+        frequency: semitoneToFrequency(profile.baseFrequency, root - 12),
+        waveType: 'sine',
+        duration: 0.85,
+        gain: 0.012,
+        detune: -6,
+      });
+
+      playTone({
+        frequency: semitoneToFrequency(profile.baseFrequency, harmony - 12),
+        waveType: 'triangle',
+        duration: 0.72,
+        gain: 0.01,
+        delay: 0.14,
+        detune: 4,
+      });
+
+      stepIndex += 1;
+    };
+
+    pulseAmbient();
+    ambientTimerId = window.setInterval(pulseAmbient, 1800);
+  }
+
+
   function playSpinStart(nextThemeKey = themeKey) {
     const profile = getProfile(nextThemeKey);
+    playAmbient(nextThemeKey);
     playScale(profile, [0, 4, 7], 0.11, 0.04, 0.08, -2);
   }
 
@@ -787,30 +849,59 @@ function createAudioEngine() {
 
     if (resolution.bonusAwarded > 0) {
       playScale(profile, [0, 4, 7, 12], 0.14, 0.055, 0.11);
+      playTone({
+        frequency: semitoneToFrequency(profile.baseFrequency, 16),
+        waveType: 'sine',
+        duration: 0.24,
+        gain: 0.04,
+        delay: 0.16,
+      });
       return;
     }
 
     if (resolution.outcome.payout > 0) {
-      playScale(profile, [0, 3, 7], 0.13, 0.05, 0.1);
+      playScale(profile, [0, 5, 9, 12], 0.14, 0.05, 0.1);
+      playTone({
+        frequency: semitoneToFrequency(profile.baseFrequency, 19),
+        waveType: 'triangle',
+        duration: 0.18,
+        gain: 0.034,
+        delay: 0.18,
+      });
       return;
     }
 
     if (resolution.progressLost > 0 || resolution.outcome.resetsProgress) {
-      playScale(profile, [0, -2, -5], 0.11, 0.045, 0.09);
+      playScale(profile, [0, -2, -5, -9], 0.13, 0.04, 0.09);
+      playTone({
+        frequency: semitoneToFrequency(profile.baseFrequency, -14),
+        waveType: 'sine',
+        duration: 0.2,
+        gain: 0.028,
+        delay: 0.16,
+      });
       return;
     }
 
-    playScale(profile, [0, -3], 0.1, 0.04, 0.08);
+    playScale(profile, [0, -3], 0.1, 0.035, 0.08);
+    playTone({
+      frequency: semitoneToFrequency(profile.baseFrequency, -12),
+      waveType: 'triangle',
+      duration: 0.16,
+      gain: 0.025,
+      delay: 0.12,
+    });
   }
 
   function playCashOut(nextThemeKey = themeKey, tokensRemoved = 0) {
     const profile = getProfile(nextThemeKey);
     const descent = tokensRemoved > 0 ? [-2, -5, -9] : [-7, -12];
-    playScale(profile, descent, 0.1, 0.04, 0.08);
+    playScale(profile, descent, 0.1, 0.03, 0.08);
   }
 
   function playThemeChange(nextThemeKey = themeKey) {
     const profile = getProfile(nextThemeKey);
+    playAmbient(nextThemeKey);
     playScale(profile, [0, 5, 9], 0.09, 0.035, 0.07, 2);
   }
 
