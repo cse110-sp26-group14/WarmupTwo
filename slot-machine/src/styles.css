@@ -255,9 +255,10 @@ h2 {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(14rem, 0.88fr) minmax(24rem, 1.6fr) minmax(17rem, 1fr);
+  grid-template-columns: minmax(15rem, 0.9fr) minmax(0, 1.55fr) minmax(18rem, 1fr);
   gap: 1rem;
   align-items: start;
+  margin-bottom: 1.25rem;
 }
 
 .cabinet-side,
@@ -265,6 +266,11 @@ h2 {
   display: grid;
   gap: 1rem;
   min-width: 0;
+}
+
+.machine-core {
+  align-content: start;
+  padding-bottom: 1rem;
 }
 
 .side-card {
@@ -356,6 +362,17 @@ h2 {
   transform: translateY(-2px);
 }
 
+.mode-chip:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+body[data-spinning='true'] .mode-chip {
+  pointer-events: none;
+}
+
 .mode-chip.is-active {
   outline: 3px solid rgba(255, 255, 255, 0.9);
   outline-offset: 2px;
@@ -370,9 +387,10 @@ h2 {
 
 .feedback-row {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
   gap: 0.9rem;
   align-items: center;
+  min-width: 0;
 }
 
 .feedback-pill {
@@ -415,6 +433,7 @@ h2 {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.1);
   transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  min-width: 0;
 }
 
 .bonus-cluster.warm {
@@ -470,10 +489,11 @@ h2 {
   position: relative;
   width: 100%;
   display: grid;
-  gap: 1rem;
+  gap: 1.1rem;
   align-content: start;
   isolation: isolate;
   min-width: 0;
+  padding-bottom: 0.9rem;
 }
 
 .reels {
@@ -498,7 +518,7 @@ h2 {
   display: grid;
   place-items: center;
   overflow: hidden;
-  padding: clamp(0.75rem, 1.8vw, 1rem);
+  padding: clamp(1rem, 2vw, 1.25rem);
   border-radius: 28px;
   background: linear-gradient(180deg, var(--reel-face-top) 0%, var(--reel-face-bottom) 100%);
   border: 4px solid var(--reel-border);
@@ -520,26 +540,28 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0;
   text-align: center;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .symbol-icon {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: min(100%, clamp(4.5rem, 10vw, 6.5rem));
-  height: min(100%, clamp(4.5rem, 10vw, 6.5rem));
+  width: min(68%, clamp(3.5rem, 7.2vw, 5rem));
+  height: min(68%, clamp(3.5rem, 7.2vw, 5rem));
   aspect-ratio: 1 / 1;
   min-height: 0;
+  max-width: 100%;
+  max-height: 100%;
+  padding: 0.08em;
   font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
-  font-size: calc(var(--reel-symbol-size, clamp(2.6rem, 7vw, 5rem)) * 0.82);
-  line-height: 1.05;
+  font-size: calc(var(--reel-symbol-size, clamp(2.6rem, 7vw, 5rem)) * 0.64);
+  line-height: 1;
   text-align: center;
   will-change: transform, opacity;
   transform-origin: center;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .symbol-label {
@@ -555,10 +577,10 @@ h2 {
 }
 
 .reels[data-reel-count='5'] .symbol-icon {
-  width: min(100%, clamp(4.8rem, 7vw, 5.8rem));
-  height: min(100%, clamp(4.8rem, 7vw, 5.8rem));
-  font-size: calc(var(--reel-symbol-size) * 0.92);
-  line-height: 1.1;
+  width: min(64%, clamp(3.1rem, 5.4vw, 4.2rem));
+  height: min(64%, clamp(3.1rem, 5.4vw, 4.2rem));
+  font-size: calc(var(--reel-symbol-size) * 0.7);
+  line-height: 1;
   min-height: 0;
 }
 
@@ -570,6 +592,7 @@ h2 {
   position: static;
   display: grid;
   place-items: center;
+  width: 100%;
   max-height: 0;
   overflow: hidden;
   opacity: 0;
@@ -580,10 +603,10 @@ h2 {
 }
 
 .result-overlay.visible {
-  max-height: 14rem;
+  max-height: 18rem;
   opacity: 1;
   transform: translateY(0);
-  margin-top: 0.35rem;
+  margin-top: 0.9rem;
 }
 
 .result-overlay-card {
@@ -852,16 +875,17 @@ h2 {
   grid-template-columns: 1fr;
   align-content: start;
   align-self: start;
+  min-width: 0;
 }
 
 .score-panel .scoreboard {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
 }
 
 .cabinet-history {
   position: relative;
   z-index: 1;
-  margin-top: 1rem;
+  margin-top: 0.8rem;
 }
 
 .history-panel {
@@ -938,15 +962,26 @@ h2 {
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.09);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .stat-value {
   font-size: clamp(1.5rem, 3vw, 2.2rem);
+  line-height: 1;
+  overflow-wrap: anywhere;
 }
 
 .stat-note {
   color: rgba(255, 247, 233, 0.72);
   line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.rules-panel,
+.scoreboard {
+  min-width: 0;
+  overflow: hidden;
 }
 
 .rules-panel h3 {
