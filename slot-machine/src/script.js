@@ -534,7 +534,7 @@ function getConfiguredThemeGameConfig(theme, mode = activeGameMode) {
     jackpotSymbol: theme.jackpotSymbol,
     progressDropSymbol: theme.progressDropSymbol,
     secondaryProgressDropSymbol: theme.secondaryProgressDropSymbol,
-    secondaryProgressDropAmount: theme.secondaryProgressDropAmount,
+    secondaryProgressDropAmount: DEFAULT_GAME_CONFIG.secondaryProgressDropAmount,
     progressResetSymbol: theme.progressResetSymbol,
   };
 }
@@ -1468,7 +1468,7 @@ async function spinAllReels(elements, config) {
  * @returns {Promise<void>}
  */
 function animateReelSymbol(reelWindow, reelElement, finalSymbol, reelIndex, symbolPool, durationMs) {
-  const startTime = performance.now();
+  const startTime = getNow();
   reelWindow.classList.add('is-spinning');
   reelElement.classList.add('spinning');
 
@@ -1490,13 +1490,13 @@ function animateReelSymbol(reelWindow, reelElement, finalSymbol, reelIndex, symb
       const easedProgress = progress * progress;
       const nextDelay = Math.round(REEL_START_INTERVAL_MS + (REEL_END_INTERVAL_MS - REEL_START_INTERVAL_MS) * easedProgress);
       window.setTimeout(() => {
-        requestAnimationFrame(advanceFrame);
+        scheduleAnimationFrame(advanceFrame);
       }, nextDelay);
     };
 
     renderReelSymbol(reelElement, pickRandomSymbol(symbolPool));
     window.setTimeout(() => {
-      requestAnimationFrame(advanceFrame);
+      scheduleAnimationFrame(advanceFrame);
     }, 0);
   });
 }
@@ -1508,14 +1508,19 @@ function animateReelSymbol(reelWindow, reelElement, finalSymbol, reelIndex, symb
  * @returns {AppElements}
  */
 function buildAppElements() {
-  const reelWindows = Array.from(document.querySelectorAll('.reel-window'));
-  const reelSymbols = Array.from(document.querySelectorAll('.reel-symbol'));
+  const reelWindows = Array.from(document.querySelectorAll('.reel-window')).filter((element) => element instanceof HTMLElement);
+  const reelSymbols = Array.from(document.querySelectorAll('.reel-symbol')).filter((element) => element instanceof HTMLElement);
+
+  if (reelWindows.length < 5 || reelSymbols.length < 5) {
+    throw new Error('The slot machine reels are missing from the page.');
+  }
 
   return {
     machinePanel: getRequiredHtmlElement('.machine-panel'),
     machineTitle: getRequiredHtmlElement('#machineTitle'),
     machineEyebrow: getRequiredHtmlElement('#machineEyebrow'),
     themeFlavor: getRequiredHtmlElement('#themeFlavor'),
+    modeFlavor: getRequiredHtmlElement('#modeFlavor'),
     guideText: getRequiredHtmlElement('#guideText'),
     vaultPrize: getRequiredHtmlElement('#vaultPrize'),
     jackpotRule: getRequiredHtmlElement('#jackpotRule'),
@@ -1642,9 +1647,22 @@ function initializeApp() {
   openHelpModal(elements);
 }
 
-if (typeof document !== 'undefined') {
+function bootWhenReady() {
+  if (typeof document === 'undefined') {
+    return;
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeApp();
+    }, { once: true });
+    return;
+  }
+
   initializeApp();
 }
+
+bootWhenReady();
 
 export {
   clampVolume,
@@ -1658,3 +1676,6 @@ export {
   renderSpinHistory,
   recordSpinHistory,
 };
+
+
+
