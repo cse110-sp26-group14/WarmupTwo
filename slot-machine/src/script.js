@@ -205,6 +205,11 @@ if (typeof document !== 'undefined') {
 
 export { clampVolume, loadStoredMode, loadStoredTheme, loadStoredVolume };
 
+/**
+ * Initialize the slot machine app and wire the first render.
+ *
+ * @returns {void}
+ */
 function initializeApp() {
   try {
     const elements = createAppElements();
@@ -221,6 +226,11 @@ function initializeApp() {
   }
 }
 
+/**
+ * Collect the required DOM nodes for the app shell.
+ *
+ * @returns {void}
+ */
 function createAppElements() {
   return {
     reelSymbols: [
@@ -278,6 +288,12 @@ function createAppElements() {
   };
 }
 
+/**
+ * Attach UI event handlers for spins, modes, themes, and settings.
+ *
+ * @param {*} elements
+ * @returns {void}
+ */
 function attachEventListeners(elements) {
   elements.spinButton.addEventListener('click', () => {
     void handleSpinClick(elements);
@@ -295,6 +311,17 @@ function attachEventListeners(elements) {
 
       hideResultOverlay(elements);
       applyTheme(button.dataset.themeOption || AVAILABLE_THEMES[0], elements, { playAudio: true });
+    });
+  });
+
+  elements.modeButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      if (gameState.isSpinning) {
+        return;
+      }
+
+      hideResultOverlay(elements);
+      applyGameMode(button.dataset.modeOption || GAME_MODES.classic.key, elements, { playAudio: true });
     });
   });
 
@@ -332,6 +359,13 @@ function attachEventListeners(elements) {
 
 
 
+/**
+ * Render the current game state into the visible UI.
+ *
+ * @param {*} state
+ * @param {*} elements
+ * @returns {void}
+ */
 function renderGameState(state, elements) {
   const gameConfig = getActiveGameConfig();
 
@@ -351,6 +385,12 @@ function renderGameState(state, elements) {
   elements.cashOutButton.disabled = state.isSpinning;
 }
 
+/**
+ * Run the full spin flow after the spin button is clicked.
+ *
+ * @param {*} elements
+ * @returns {void}
+ */
 async function handleSpinClick(elements) {
   const gameConfig = getActiveGameConfig();
 
@@ -404,6 +444,12 @@ async function handleSpinClick(elements) {
   }
 }
 
+/**
+ * Resolve the token-to-slides cash-out action.
+ *
+ * @param {*} elements
+ * @returns {void}
+ */
 function handleCashOutClick(elements) {
   if (gameState.isSpinning) {
     return;
@@ -435,6 +481,12 @@ function handleCashOutClick(elements) {
   renderGameState(gameState, elements);
 }
 
+/**
+ * Spin the visible reels in parallel and wait for them to finish.
+ *
+ * @param {*} elements
+ * @returns {void}
+ */
 function spinAllReels(elements) {
   const visibleReels = elements.reelSymbols.slice(0, activeGameMode.reelCount);
 
@@ -445,29 +497,79 @@ function spinAllReels(elements) {
   );
 }
 
+/**
+ * Animate one reel until its stop time and return the final symbol key.
+ *
+ * @param {*} reelElement
+ * @param {*} durationMs
+ * @param {*} symbolPool
+ * @param {*} reelIndex
+ * @returns {void}
+ */
 function animateReelSymbol(reelElement, durationMs, symbolPool, reelIndex) {
   const reelWindow = reelElement.closest('.reel-window');
 
   reelElement.classList.add('spinning');
   reelWindow?.classList.add('is-spinning');
 
-  const timerId = window.setInterval(() => {
-    renderReelSymbol(reelElement, pickRandomSymbol(symbolPool));
-  }, REEL_TICK_INTERVAL_MS);
-
   return new Promise((resolve) => {
-    window.setTimeout(() => {
-      window.clearInterval(timerId);
+    const startTime = performance.now();
+    let nextTickAt = startTime;
+    let stopped = false;
+
+    const easeOutCubic = (value) => 1 - (1 - value) ** 3;
+
+    const finishSpin = () => {
+      if (stopped) {
+        return;
+      }
+
+      stopped = true;
       reelElement.classList.remove('spinning');
       reelWindow?.classList.remove('is-spinning');
+
       const finalSymbol = pickRandomSymbol(symbolPool);
       renderReelSymbol(reelElement, finalSymbol);
       audioEngine.playReelStop(activeTheme.key, reelIndex);
       resolve(finalSymbol.key);
-    }, durationMs);
+    };
+
+    const step = (now) => {
+      if (stopped) {
+        return;
+      }
+
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / durationMs);
+
+      if (now >= nextTickAt) {
+        renderReelSymbol(reelElement, pickRandomSymbol(symbolPool));
+
+        const fastTick = 52;
+        const slowTick = 190;
+        nextTickAt = now + fastTick + (slowTick - fastTick) * easeOutCubic(progress);
+      }
+
+      if (progress >= 1) {
+        finishSpin();
+        return;
+      }
+
+      window.requestAnimationFrame(step);
+    };
+
+    window.requestAnimationFrame(step);
+    window.setTimeout(finishSpin, durationMs);
   });
 }
 
+/**
+ * Play UI feedback after a spin resolution is known.
+ *
+ * @param {*} resolution
+ * @param {*} elements
+ * @returns {void}
+ */
 function playSpinEffects(resolution, elements) {
   if (resolution.outcome.payout > 0) {
     flashMachinePanel(elements.machinePanel, 'win-flash');
@@ -491,6 +593,14 @@ function playSpinEffects(resolution, elements) {
   }
 }
 
+/**
+ * Update the vault progress meter styling and copy.
+ *
+ * @param {*} state
+ * @param {*} elements
+ * @param {*} gameConfig
+ * @returns {void}
+ */
 function updateBonusMeterState(state, elements, gameConfig) {
   const remainingSpins = Math.max(0, gameConfig.bonusThreshold - state.bonusProgress);
   elements.bonusCluster.classList.remove('warm', 'heated', 'imminent');
@@ -506,6 +616,14 @@ function updateBonusMeterState(state, elements, gameConfig) {
   elements.bonusAlert.textContent = getBonusAlertText(state, remainingSpins, gameConfig);
 }
 
+/**
+ * Build the bonus alert message for the current progress state.
+ *
+ * @param {*} state
+ * @param {*} remainingSpins
+ * @param {*} gameConfig
+ * @returns {void}
+ */
 function getBonusAlertText(state, remainingSpins, gameConfig) {
   if (remainingSpins === 1) {
     return `One more spin opens the ${gameConfig.bonusReward}-token vault.`;
@@ -526,6 +644,12 @@ function getBonusAlertText(state, remainingSpins, gameConfig) {
   return `Vault reset. ${gameConfig.bonusThreshold} spins until the next ${gameConfig.bonusReward}-token payout.`;
 }
 
+/**
+ * Map a spin resolution to a feedback pill state.
+ *
+ * @param {*} resolution
+ * @returns {void}
+ */
 function getFeedbackKindForSpin(resolution) {
   if (resolution.bonusAwarded > 0) {
     return 'bonus';
@@ -534,6 +658,12 @@ function getFeedbackKindForSpin(resolution) {
   return resolution.outcome.kind;
 }
 
+/**
+ * Build the short feedback label for a spin resolution.
+ *
+ * @param {*} resolution
+ * @returns {void}
+ */
 function getFeedbackTextForSpin(resolution) {
   if (resolution.bonusAwarded > 0) {
     return `Vault +${resolution.bonusAwarded}`;
@@ -550,6 +680,13 @@ function getFeedbackTextForSpin(resolution) {
   return 'Try again';
 }
 
+/**
+ * Build the temporary result overlay state.
+ *
+ * @param {*} resolution
+ * @param {*} gameConfig
+ * @returns {void}
+ */
 function getResultStateForSpin(resolution, gameConfig) {
   if (resolution.outcome.payout === gameConfig.jackpotPayout) {
     return {
@@ -604,6 +741,13 @@ function getResultStateForSpin(resolution, gameConfig) {
   };
 }
 
+/**
+ * Show the temporary result overlay and auto-dismiss it.
+ *
+ * @param {*} elements
+ * @param {*} state
+ * @returns {void}
+ */
 function showResultOverlay(elements, state) {
   if (overlayTimeoutId) {
     window.clearTimeout(overlayTimeoutId);
@@ -620,6 +764,12 @@ function showResultOverlay(elements, state) {
   }, RESULT_OVERLAY_DURATION_MS);
 }
 
+/**
+ * Hide the temporary result overlay immediately.
+ *
+ * @param {*} elements
+ * @returns {void}
+ */
 function hideResultOverlay(elements) {
   if (overlayTimeoutId) {
     window.clearTimeout(overlayTimeoutId);
@@ -629,10 +779,24 @@ function hideResultOverlay(elements) {
   elements.resultOverlay.classList.remove('visible');
 }
 
+/**
+ * Update the main status line text.
+ *
+ * @param {*} elements
+ * @param {*} message
+ * @returns {void}
+ */
 function setStatusMessage(elements, message) {
   elements.statusLine.textContent = message;
 }
 
+/**
+ * Queue a short toast message in the corner stack.
+ *
+ * @param {*} elements
+ * @param {*} message
+ * @returns {void}
+ */
 function queueToast(elements, message) {
   const templateChild = elements.toastTemplate.content.firstElementChild;
 
@@ -654,6 +818,13 @@ function queueToast(elements, message) {
   }, TOAST_DURATION_MS);
 }
 
+/**
+ * Flash the cabinet panel for win and loss feedback.
+ *
+ * @param {*} panel
+ * @param {*} effectClass
+ * @returns {void}
+ */
 function flashMachinePanel(panel, effectClass) {
   panel.classList.remove('win-flash', 'loss-flash');
   panel.classList.add(effectClass);
@@ -663,22 +834,48 @@ function flashMachinePanel(panel, effectClass) {
   }, PANEL_EFFECT_DURATION_MS);
 }
 
+/**
+ * Trigger a vibration pattern when the device supports it.
+ *
+ * @param {*} pattern
+ * @returns {void}
+ */
 function triggerVibration(pattern) {
   if ('vibrate' in navigator) {
     navigator.vibrate(pattern);
   }
 }
 
+/**
+ * Render a single reel symbol and its accessible label.
+ *
+ * @param {*} element
+ * @param {*} symbol
+ * @returns {void}
+ */
 function renderReelSymbol(element, symbol) {
   element.setAttribute('aria-label', symbol.label);
   element.innerHTML = `<span class="symbol-icon" aria-hidden="true">${symbol.icon}</span>`;
 }
 
+/**
+ * Pick a random symbol from the current symbol pool.
+ *
+ * @param {*} symbolPool
+ * @returns {void}
+ */
 function pickRandomSymbol(symbolPool) {
   const randomIndex = Math.floor(Math.random() * symbolPool.length);
   return symbolPool[randomIndex];
 }
 
+/**
+ * Apply a theme, update the cabinet copy, and sync the symbol pool.
+ *
+ * @param {*} themeName
+ * @param {*} elements
+ * @returns {void}
+ */
 function applyTheme(themeName, elements, options = {}) {
   const safeTheme = THEME_LIBRARY[themeName] || THEME_LIBRARY[AVAILABLE_THEMES[0]];
   const gameConfig = getConfiguredThemeGameConfig(safeTheme);
@@ -715,6 +912,13 @@ function applyTheme(themeName, elements, options = {}) {
   syncVolumeUI(elements, audioEngine.getVolume());
 }
 
+/**
+ * Apply the active game mode and persist the selection.
+ *
+ * @param {*} modeName
+ * @param {*} elements
+ * @returns {void}
+ */
 function applyGameMode(modeName, elements, options = {}) {
   const safeMode = getGameMode(modeName);
 
@@ -731,10 +935,21 @@ function applyGameMode(modeName, elements, options = {}) {
   renderGameState(gameState, elements);
 }
 
+/**
+ * Return the merged config for the active theme and mode.
+ *
+ * @returns {void}
+ */
 function getActiveGameConfig() {
   return getConfiguredThemeGameConfig(activeTheme, activeGameMode);
 }
 
+/**
+ * Merge the base config with theme and mode overrides.
+ *
+ * @param {*} theme
+ * @returns {void}
+ */
 function getConfiguredThemeGameConfig(theme, mode = activeGameMode) {
   return {
     ...DEFAULT_GAME_CONFIG,
@@ -748,20 +963,48 @@ function getConfiguredThemeGameConfig(theme, mode = activeGameMode) {
   };
 }
 
+/**
+ * Find a symbol definition for the requested theme symbol key.
+ *
+ * @param {*} theme
+ * @param {*} symbolKey
+ * @returns {void}
+ */
 function getThemeSymbol(theme, symbolKey) {
   return theme.symbols.find((symbol) => symbol.key === symbolKey);
 }
 
+/**
+ * Build a risk-board row using themed icon and copy HTML.
+ *
+ * @param {*} icon
+ * @param {*} text
+ * @returns {void}
+ */
 function createRiskLine(icon, text) {
   return `<span class="rule-icon" aria-hidden="true">${icon}</span><span class="rule-copy">${text}</span>`;
 }
 
+/**
+ * Seed the reels with symbols from the active theme.
+ *
+ * @param {*} elements
+ * @param {*} symbols
+ * @returns {void}
+ */
 function syncReelSymbolsToTheme(elements, symbols) {
   elements.reelSymbols.forEach((element, index) => {
     renderReelSymbol(element, symbols[index % symbols.length]);
   });
 }
 
+/**
+ * Update mode-specific UI state and visible reel count.
+ *
+ * @param {*} elements
+ * @param {*} mode
+ * @returns {void}
+ */
 function syncGameModeUI(elements, mode) {
   elements.reels.dataset.reelCount = String(mode.reelCount);
   elements.reels.dataset.mode = mode.key;
@@ -778,6 +1021,11 @@ function syncGameModeUI(elements, mode) {
   elements.modeFlavor.textContent = mode.description;
 }
 
+/**
+ * Load the saved theme or fall back to the default theme.
+ *
+ * @returns {void}
+ */
 function loadStoredTheme() {
   try {
     const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
@@ -787,6 +1035,11 @@ function loadStoredTheme() {
   }
 }
 
+/**
+ * Load the saved game mode or fall back to classic.
+ *
+ * @returns {void}
+ */
 function loadStoredMode() {
   try {
     const storedMode = window.localStorage.getItem(MODE_STORAGE_KEY);
@@ -796,6 +1049,11 @@ function loadStoredMode() {
   }
 }
 
+/**
+ * Load the saved volume or fall back to the default level.
+ *
+ * @returns {void}
+ */
 function loadStoredVolume() {
   try {
     const storedVolume = Number(window.localStorage.getItem(VOLUME_STORAGE_KEY));
@@ -805,6 +1063,12 @@ function loadStoredVolume() {
   }
 }
 
+/**
+ * Persist the selected theme to local storage.
+ *
+ * @param {*} themeName
+ * @returns {void}
+ */
 function persistTheme(themeName) {
   try {
     window.localStorage.setItem(THEME_STORAGE_KEY, themeName);
@@ -813,6 +1077,12 @@ function persistTheme(themeName) {
   }
 }
 
+/**
+ * Persist the selected mode to local storage.
+ *
+ * @param {*} modeName
+ * @returns {void}
+ */
 function persistMode(modeName) {
   try {
     window.localStorage.setItem(MODE_STORAGE_KEY, modeName);
@@ -821,6 +1091,12 @@ function persistMode(modeName) {
   }
 }
 
+/**
+ * Persist the selected volume to local storage.
+ *
+ * @param {*} volume
+ * @returns {void}
+ */
 function persistVolume(volume) {
   try {
     window.localStorage.setItem(VOLUME_STORAGE_KEY, String(volume));
@@ -829,28 +1105,57 @@ function persistVolume(volume) {
   }
 }
 
+/**
+ * Sync the slider and readout to the current volume.
+ *
+ * @param {*} elements
+ * @param {*} volume
+ * @returns {void}
+ */
 function syncVolumeUI(elements, volume) {
   const percentage = Math.round(clampVolume(volume) * 100);
   elements.volumeSlider.value = String(percentage);
   elements.volumeValue.textContent = `${percentage}%`;
 }
 
+/**
+ * Clamp a volume value into the 0 to 1 range.
+ *
+ * @param {*} volume
+ * @returns {void}
+ */
 function clampVolume(volume) {
   return Math.min(1, Math.max(0, volume));
 }
 
+/**
+ * Collect the theme selection buttons from the DOM.
+ *
+ * @returns {void}
+ */
 function getThemeButtons() {
   return Array.from(document.querySelectorAll('[data-theme-option]')).filter(
     (element) => element instanceof HTMLButtonElement
   );
 }
 
+/**
+ * Collect the game mode selection buttons from the DOM.
+ *
+ * @returns {void}
+ */
 function getModeButtons() {
   return Array.from(document.querySelectorAll('[data-mode-option]')).filter(
     (element) => element instanceof HTMLButtonElement
   );
 }
 
+/**
+ * Look up a required HTML element and throw if it is missing.
+ *
+ * @param {*} selector
+ * @returns {void}
+ */
 function getRequiredHtmlElement(selector) {
   const element = document.querySelector(selector);
 
@@ -861,6 +1166,12 @@ function getRequiredHtmlElement(selector) {
   return element;
 }
 
+/**
+ * Look up a required button element and throw if it is missing.
+ *
+ * @param {*} selector
+ * @returns {void}
+ */
 function getRequiredButton(selector) {
   const element = document.querySelector(selector);
 
@@ -871,6 +1182,12 @@ function getRequiredButton(selector) {
   return element;
 }
 
+/**
+ * Look up a required range input and throw if it is missing.
+ *
+ * @param {*} selector
+ * @returns {void}
+ */
 function getRequiredRangeInput(selector) {
   const element = document.querySelector(selector);
 
@@ -881,6 +1198,11 @@ function getRequiredRangeInput(selector) {
   return element;
 }
 
+/**
+ * Clear any pending auto-close timer for the guide modal.
+ *
+ * @returns {void}
+ */
 function clearHelpTimer() {
   if (helpTimeoutId) {
     window.clearTimeout(helpTimeoutId);
@@ -888,6 +1210,12 @@ function clearHelpTimer() {
   }
 }
 
+/**
+ * Open the guide modal and optionally arm the auto-close timer.
+ *
+ * @param {*} elements
+ * @returns {void}
+ */
 function openHelpModal(elements, options = {}) {
   clearHelpTimer();
 
@@ -903,6 +1231,12 @@ function openHelpModal(elements, options = {}) {
   }
 }
 
+/**
+ * Close the guide modal and clear any pending timer.
+ *
+ * @param {*} elements
+ * @returns {void}
+ */
 function closeHelpModal(elements) {
   clearHelpTimer();
 
@@ -912,6 +1246,12 @@ function closeHelpModal(elements) {
   elements.helpLauncher.setAttribute('aria-expanded', 'false');
 }
 
+/**
+ * Toggle the guide modal open or closed.
+ *
+ * @param {*} elements
+ * @returns {void}
+ */
 function toggleHelpModal(elements) {
   if (elements.helpModal.hidden) {
     openHelpModal(elements, { autoClose: false });
@@ -921,6 +1261,12 @@ function toggleHelpModal(elements) {
   closeHelpModal(elements);
 }
 
+/**
+ * Toggle the guide modal between minimized and expanded states.
+ *
+ * @param {*} elements
+ * @returns {void}
+ */
 function toggleHelpModalMinimized(elements) {
   if (elements.helpModal.hidden) {
     openHelpModal(elements);
@@ -943,6 +1289,11 @@ function toggleHelpModalMinimized(elements) {
  *   playThemeChange: (themeKey: string) => void,
  * }}
  */
+/**
+ * Create the theme-aware Web Audio engine used by the cabinet.
+ *
+ * @returns {void}
+ */
 function createAudioEngine() {
   /** @type {AudioContext | null} */
   let context = null;
@@ -954,6 +1305,11 @@ function createAudioEngine() {
   let ambientThemeKey = null;
   let ambientPhraseIndex = 0;
 
+  /**
+ * Helper for ensure context.
+ *
+ * @returns {void}
+ */
   function ensureContext() {
     if (typeof window.AudioContext === 'undefined' && typeof window.webkitAudioContext === 'undefined') {
       return null;
@@ -970,6 +1326,11 @@ function createAudioEngine() {
     return context;
   }
 
+  /**
+ * Helper for unlock.
+ *
+ * @returns {void}
+ */
   function unlock() {
     const audioContext = ensureContext();
 
@@ -984,10 +1345,22 @@ function createAudioEngine() {
     playAmbient(themeKey);
   }
 
+  /**
+ * Helper for set theme.
+ *
+ * @param {*} nextThemeKey
+ * @returns {void}
+ */
   function setTheme(nextThemeKey) {
     themeKey = THEME_AUDIO_LIBRARY[nextThemeKey] ? nextThemeKey : AVAILABLE_THEMES[0];
   }
 
+  /**
+ * Helper for set volume.
+ *
+ * @param {*} volume
+ * @returns {void}
+ */
   function setVolume(volume) {
     pendingVolume = clampVolume(volume);
 
@@ -996,18 +1369,40 @@ function createAudioEngine() {
     }
   }
 
+  /**
+ * Helper for get volume.
+ *
+ * @returns {void}
+ */
   function getVolume() {
     return pendingVolume;
   }
 
+  /**
+ * Helper for get profile.
+ *
+ * @returns {void}
+ */
   function getProfile(nextThemeKey = themeKey) {
     return THEME_AUDIO_LIBRARY[nextThemeKey] || THEME_AUDIO_LIBRARY[AVAILABLE_THEMES[0]];
   }
 
+  /**
+ * Helper for semitone to frequency.
+ *
+ * @param {*} baseFrequency
+ * @param {*} semitoneOffset
+ * @returns {void}
+ */
   function semitoneToFrequency(baseFrequency, semitoneOffset) {
     return baseFrequency * 2 ** (semitoneOffset / 12);
   }
 
+  /**
+ * Helper for play tone.
+ *
+ * @returns {void}
+ */
   function playTone({
     frequency,
     waveType,
@@ -1046,6 +1441,15 @@ function createAudioEngine() {
     osc.stop(startTime + duration + 0.02);
   }
 
+  /**
+ * Helper for play scale.
+ *
+ * @param {*} themeProfile
+ * @param {*} steps
+ * @param {*} noteDuration
+ * @param {*} gain
+ * @returns {void}
+ */
   function playScale(themeProfile, steps, noteDuration, gain, delayStep = 0.1, detune = 0) {
     steps.forEach((step, index) => {
       playTone({
@@ -1059,6 +1463,11 @@ function createAudioEngine() {
     });
   }
 
+  /**
+ * Helper for stop ambient.
+ *
+ * @returns {void}
+ */
   function stopAmbient() {
     if (ambientTimerId !== null) {
       window.clearTimeout(ambientTimerId);
@@ -1066,6 +1475,12 @@ function createAudioEngine() {
     }
   }
 
+  /**
+ * Helper for schedule ambient phrase.
+ *
+ * @param {*} profile
+ * @returns {void}
+ */
   function scheduleAmbientPhrase(profile) {
     const motif = profile.ambientMotifs[ambientPhraseIndex % profile.ambientMotifs.length];
     const transpose = (ambientPhraseIndex % 4) * 2;
@@ -1106,6 +1521,11 @@ function createAudioEngine() {
     }, phraseLengthMs);
   }
 
+  /**
+ * Helper for play ambient.
+ *
+ * @returns {void}
+ */
   function playAmbient(nextThemeKey = themeKey) {
     const audioContext = ensureContext();
 
@@ -1124,12 +1544,22 @@ function createAudioEngine() {
   }
 
 
+  /**
+ * Helper for play spin start.
+ *
+ * @returns {void}
+ */
   function playSpinStart(nextThemeKey = themeKey) {
     const profile = getProfile(nextThemeKey);
     playAmbient(nextThemeKey);
     playScale(profile, [0, 4, 7, 12], 0.11, 0.04, 0.08, -2);
   }
 
+  /**
+ * Helper for play reel stop.
+ *
+ * @returns {void}
+ */
   function playReelStop(nextThemeKey = themeKey, reelIndex = 0) {
     const profile = getProfile(nextThemeKey);
     playTone({
@@ -1141,6 +1571,12 @@ function createAudioEngine() {
     });
   }
 
+  /**
+ * Helper for play outcome.
+ *
+ * @param {*} resolution
+ * @returns {void}
+ */
   function playOutcome(resolution, nextThemeKey = themeKey) {
     const profile = getProfile(nextThemeKey);
 
@@ -1190,12 +1626,22 @@ function createAudioEngine() {
     });
   }
 
+  /**
+ * Helper for play cash out.
+ *
+ * @returns {void}
+ */
   function playCashOut(nextThemeKey = themeKey, tokensRemoved = 0) {
     const profile = getProfile(nextThemeKey);
     const descent = tokensRemoved > 0 ? [-2, -5, -9] : [-7, -12, -15];
     playScale(profile, descent, 0.1, 0.03, 0.08);
   }
 
+  /**
+ * Helper for play theme change.
+ *
+ * @returns {void}
+ */
   function playThemeChange(nextThemeKey = themeKey) {
     const profile = getProfile(nextThemeKey);
     playAmbient(nextThemeKey);
@@ -1215,6 +1661,12 @@ function createAudioEngine() {
   };
 }
 
+/**
+ * Look up a required template element and throw if it is missing.
+ *
+ * @param {*} selector
+ * @returns {void}
+ */
 function getRequiredTemplate(selector) {
   const element = document.querySelector(selector);
 
