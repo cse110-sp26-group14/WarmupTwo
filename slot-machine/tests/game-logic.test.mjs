@@ -67,6 +67,15 @@ test('pairing the drop symbol decreases vault progress', () => {
   assert.equal(resolution.nextState.bonusProgress, 7);
 });
 
+test('pairing the secondary drop symbol decreases vault progress a little', () => {
+  const paidSpinState = startSpin(createInitialGameState({ wallet: 30, bonusProgress: 10 }));
+  const resolution = finishSpin(paidSpinState, ['BURST', 'BURST', 'KOI']);
+
+  assert.equal(resolution.outcome.kind, 'loss');
+  assert.equal(resolution.progressLost, 2);
+  assert.equal(resolution.nextState.bonusProgress, 9);
+});
+
 test('triple reset symbol wipes the vault meter', () => {
   const paidSpinState = startSpin(createInitialGameState({ wallet: 30, bonusProgress: 12 }));
   const resolution = finishSpin(paidSpinState, ['MASK', 'MASK', 'MASK']);
@@ -74,6 +83,33 @@ test('triple reset symbol wipes the vault meter', () => {
   assert.equal(resolution.outcome.resetsProgress, true);
   assert.equal(resolution.progressLost, 13);
   assert.equal(resolution.nextState.bonusProgress, 0);
+});
+
+test('five reel jackpots honor the configured jackpot count', () => {
+  const config = {
+    ...DEFAULT_GAME_CONFIG,
+    reelCount: 5,
+    jackpotMatchCount: 5,
+    jackpotSymbol: 'STAR',
+  };
+
+  const result = evaluateSpinResult(['STAR', 'STAR', 'STAR', 'STAR', 'STAR'], config);
+
+  assert.equal(result.kind, 'win');
+  assert.equal(result.payout, config.jackpotPayout);
+});
+
+test('five reel modes reject the wrong reel count', () => {
+  const config = {
+    ...DEFAULT_GAME_CONFIG,
+    reelCount: 5,
+    jackpotMatchCount: 5,
+    jackpotSymbol: 'STAR',
+  };
+
+  assert.throws(() => {
+    evaluateSpinResult(['STAR', 'STAR', 'STAR', 'STAR'], config);
+  }, /Expected exactly 5 reel symbols/);
 });
 
 test('finishSpin applies the comeback refill when the wallet is drained', () => {

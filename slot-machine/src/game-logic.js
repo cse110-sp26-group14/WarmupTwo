@@ -28,7 +28,10 @@
  * @property {string} jackpotSymbol
  * @property {string} progressDropSymbol
  * @property {number} progressDropAmount
+ * @property {string} secondaryProgressDropSymbol
+ * @property {number} secondaryProgressDropAmount
  * @property {string} progressResetSymbol
+ * @property {number} jackpotMatchCount
  * @property {number} reelCount
  */
 
@@ -82,7 +85,10 @@ export const DEFAULT_GAME_CONFIG = Object.freeze({
   jackpotSymbol: 'LANTERN',
   progressDropSymbol: 'MASK',
   progressDropAmount: 4,
+  secondaryProgressDropSymbol: 'BURST',
+  secondaryProgressDropAmount: 2,
   progressResetSymbol: 'MASK',
+  jackpotMatchCount: 3,
   reelCount: 3,
 });
 
@@ -199,54 +205,63 @@ export function evaluateSpinResult(reelSymbols, config = DEFAULT_GAME_CONFIG) {
   const safeSymbols = validateReelSymbols(reelSymbols, config.reelCount);
   const symbolCounts = countSymbols(safeSymbols);
   const countValues = Object.values(symbolCounts).sort((left, right) => right - left);
-  const tripleSymbol = Object.keys(symbolCounts).find((symbol) => symbolCounts[symbol] === 3);
+  const matchCount = countValues[0];
+  const matchedSymbol = Object.keys(symbolCounts).find((symbol) => symbolCounts[symbol] === matchCount);
 
-  if (tripleSymbol === config.jackpotSymbol) {
+  if (matchCount === config.jackpotMatchCount && matchedSymbol === config.jackpotSymbol) {
     return {
       payout: config.jackpotPayout,
-      message: `Triple ${tripleSymbol}. Theme jackpot.`,
+      message: matchCount + 'x ' + matchedSymbol + '. Theme jackpot.',
       kind: 'win',
       progressDelta: 0,
       resetsProgress: false,
     };
   }
 
-  if (tripleSymbol === config.progressResetSymbol) {
+  if (matchCount >= 3 && matchedSymbol === config.progressResetSymbol) {
     return {
       payout: 0,
-      message: `Triple ${tripleSymbol}. The vault meter crashed back to zero.`,
+      message: matchCount + 'x ' + matchedSymbol + '. The vault meter crashed back to zero.',
       kind: 'loss',
       progressDelta: 0,
       resetsProgress: true,
     };
   }
 
-  if (countValues[0] === 3 && tripleSymbol) {
+  if (matchCount >= 2 && matchedSymbol === config.progressDropSymbol) {
+    return {
+      payout: 0,
+      message: 'Pair of ' + matchedSymbol + '. The vault meter slipped backward.',
+      kind: 'loss',
+      progressDelta: -config.progressDropAmount,
+      resetsProgress: false,
+    };
+  }
+
+  if (matchCount >= 2 && matchedSymbol === config.secondaryProgressDropSymbol) {
+    return {
+      payout: 0,
+      message: 'Pair of ' + matchedSymbol + '. The vault meter took a smaller hit.',
+      kind: 'loss',
+      progressDelta: -config.secondaryProgressDropAmount,
+      resetsProgress: false,
+    };
+  }
+
+  if (matchCount >= 3 && matchedSymbol) {
     return {
       payout: config.triplePayout,
-      message: `Triple ${tripleSymbol}. Nice hit.`,
+      message: matchCount + 'x ' + matchedSymbol + '. Nice hit.',
       kind: 'win',
       progressDelta: 0,
       resetsProgress: false,
     };
   }
 
-  if (countValues[0] === 2) {
-    const pairedSymbol = Object.keys(symbolCounts).find((symbol) => symbolCounts[symbol] === 2);
-
-    if (pairedSymbol === config.progressDropSymbol) {
-      return {
-        payout: 0,
-        message: `Pair of ${pairedSymbol}. The vault meter slipped backward.`,
-        kind: 'loss',
-        progressDelta: -config.progressDropAmount,
-        resetsProgress: false,
-      };
-    }
-
+  if (matchCount === 2 && matchedSymbol) {
     return {
       payout: config.pairPayout,
-      message: `Pair of ${pairedSymbol}. Small win, solid vibes.`,
+      message: 'Pair of ' + matchedSymbol + '. Small win, solid vibes.',
       kind: 'win',
       progressDelta: 0,
       resetsProgress: false,
