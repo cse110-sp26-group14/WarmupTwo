@@ -656,6 +656,10 @@ h2 {
   padding: 1rem;
 }
 
+.help-modal[hidden] {
+  display: none !important;
+}
+
 .help-modal-backdrop {
   position: absolute;
   inset: 0;
