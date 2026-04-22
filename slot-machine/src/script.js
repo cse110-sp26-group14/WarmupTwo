@@ -334,6 +334,7 @@ async function handleSpinClick(elements) {
 
   const previousState = gameState;
   hideResultOverlay(elements);
+  closeHelpModal(elements);
 
   try {
     audioEngine.unlock();
@@ -382,6 +383,7 @@ function handleCashOutClick(elements) {
     return;
   }
 
+  closeHelpModal(elements);
   const resolution = resolveCashOut(gameState, getActiveGameConfig());
 
   gameState = {
@@ -787,11 +789,15 @@ function getRequiredRangeInput(selector) {
   return element;
 }
 
-function openHelpModal(elements, options = {}) {
+function clearHelpTimer() {
   if (helpTimeoutId) {
     window.clearTimeout(helpTimeoutId);
     helpTimeoutId = null;
   }
+}
+
+function openHelpModal(elements, options = {}) {
+  clearHelpTimer();
 
   elements.helpModal.hidden = false;
   elements.helpModal.classList.remove('is-minimized');
@@ -806,19 +812,17 @@ function openHelpModal(elements, options = {}) {
 }
 
 function closeHelpModal(elements) {
-  if (helpTimeoutId) {
-    window.clearTimeout(helpTimeoutId);
-    helpTimeoutId = null;
-  }
+  clearHelpTimer();
 
   elements.helpModal.hidden = true;
   elements.helpModal.classList.remove('is-minimized');
+  elements.helpMinimizeButton.textContent = 'Minimize';
   elements.helpLauncher.setAttribute('aria-expanded', 'false');
 }
 
 function toggleHelpModal(elements) {
   if (elements.helpModal.hidden) {
-    openHelpModal(elements);
+    openHelpModal(elements, { autoClose: false });
     return;
   }
 
