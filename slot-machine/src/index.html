@@ -20,12 +20,23 @@
         </p>
       </div>
 
-      <aside class="quick-guide" aria-label="How to play">
-        <p class="mini-label">How to play</p>
-        <p class="guide-text">
-          Each spin costs 3 tokens. Match symbols to win. Every 5 spins, the machine gives you a bonus pack.
-        </p>
-      </aside>
+      <div class="sidebar-stack">
+        <aside class="quick-guide" aria-label="How to play">
+          <p class="mini-label">How to play</p>
+          <p class="guide-text">
+            Each spin costs 3 tokens. Match symbols to win. Every 5 spins, the machine gives you a bonus pack.
+          </p>
+        </aside>
+
+        <section class="theme-picker" aria-label="Theme selector">
+          <p class="mini-label">Pick a vibe</p>
+          <div class="theme-options">
+            <button class="theme-chip" data-theme-option="sunset" type="button">Solar Pop</button>
+            <button class="theme-chip" data-theme-option="midnight" type="button">Neon Night</button>
+            <button class="theme-chip" data-theme-option="mint" type="button">Mint Panic</button>
+          </div>
+        </section>
+      </div>
     </header>
 
     <section class="machine-panel" aria-labelledby="machineTitle">
@@ -41,21 +52,30 @@
         <div class="feedback-row">
           <div class="feedback-pill ready" id="feedbackPill" aria-live="polite">Ready to spin</div>
 
-          <div class="bonus-cluster" aria-live="polite">
+          <div class="bonus-cluster" id="bonusCluster" aria-live="polite">
             <div class="bonus-copy">
               <span class="bonus-label">Bonus meter</span>
               <strong id="bonusText">0 / 5 spins</strong>
             </div>
+            <p class="bonus-alert" id="bonusAlert">Five spins until bonus drop.</p>
             <div class="bonus-track" aria-hidden="true">
               <div class="bonus-fill" id="bonusFill"></div>
             </div>
           </div>
         </div>
 
-        <div class="reels" aria-live="polite">
-          <div class="reel-window"><span class="reel-symbol" id="reel0">PROMPT</span></div>
-          <div class="reel-window"><span class="reel-symbol" id="reel1">GPU</span></div>
-          <div class="reel-window"><span class="reel-symbol" id="reel2">HYPE</span></div>
+        <div class="reel-stage">
+          <div class="reels" aria-live="polite">
+            <div class="reel-window"><span class="reel-symbol" id="reel0">PROMPT</span></div>
+            <div class="reel-window"><span class="reel-symbol" id="reel1">GPU</span></div>
+            <div class="reel-window"><span class="reel-symbol" id="reel2">HYPE</span></div>
+          </div>
+
+          <div class="result-burst ready" id="resultBurst" aria-live="polite" aria-atomic="true">
+            <p class="result-kicker" id="resultKicker">Next up</p>
+            <strong class="result-value" id="resultValue">SPIN TO PLAY</strong>
+            <p class="result-caption" id="resultCaption">The machine saves the loud part for the result.</p>
+          </div>
         </div>
 
         <div class="controls">
