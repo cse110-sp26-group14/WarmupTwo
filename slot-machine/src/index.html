@@ -71,6 +71,15 @@
             </label>
             <input id="volumeSlider" class="volume-slider" type="range" min="0" max="100" step="1" value="35" aria-label="Game volume">
           </section>
+
+          <section class="side-card mode-panel" aria-label="Game mode">
+            <p class="mini-label">Game mode</p>
+            <div class="mode-options">
+              <button class="mode-chip is-active" data-mode-option="classic" type="button">Classic 3-Reel</button>
+              <button class="mode-chip" data-mode-option="bigFive" type="button">Big 5-Reel</button>
+            </div>
+            <p class="mode-flavor" id="modeFlavor">Classic 3-reel play keeps the cabinet quick and compact.</p>
+          </section>
         </aside>
 
         <div class="machine-core">
@@ -90,10 +99,12 @@
           </div>
 
           <div class="reel-stage">
-            <div class="reels" aria-live="polite">
+            <div class="reels" data-reel-count="3" aria-live="polite">
               <div class="reel-window"><span class="reel-symbol" id="reel0"></span></div>
               <div class="reel-window"><span class="reel-symbol" id="reel1"></span></div>
               <div class="reel-window"><span class="reel-symbol" id="reel2"></span></div>
+              <div class="reel-window is-hidden"><span class="reel-symbol" id="reel3"></span></div>
+              <div class="reel-window is-hidden"><span class="reel-symbol" id="reel4"></span></div>
             </div>
 
             <div class="result-overlay" id="resultOverlay" aria-live="polite" aria-atomic="true">
@@ -145,6 +156,7 @@
               <li id="jackpotRule"><span class="rule-icon" id="jackpotRuleIcon" aria-hidden="true">&#127922;</span><span class="rule-copy">Three LANTERN icons: jackpot +30 tokens</span></li>
               <li id="bonusRule"><span class="rule-icon" id="bonusRuleIcon" aria-hidden="true">&#128142;</span><span class="rule-copy">Every 24 spins: vault +150 tokens</span></li>
               <li id="setbackRule"><span class="rule-icon" id="setbackRuleIcon" aria-hidden="true">&#9888;&#65039;</span><span class="rule-copy">Pair of MASK icons: lose 4 progress</span></li>
+              <li id="burstRule"><span class="rule-icon" id="burstRuleIcon" aria-hidden="true">&#128165;</span><span class="rule-copy">Pair of Burst icons: lose 2 progress</span></li>
               <li id="resetRule"><span class="rule-icon" id="resetRuleIcon" aria-hidden="true">&#128165;</span><span class="rule-copy">Triple MASK icons: reset the vault</span></li>
             </ul>
           </section>

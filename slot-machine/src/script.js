@@ -7,15 +7,16 @@ import {
   resolveCashOut,
   startSpin,
 } from './game-logic.js';
+import { GAME_MODES, getGameMode } from './game-modes.js';
 
-const REEL_SPIN_DURATIONS_MS = Object.freeze([700, 920, 1140]);
 const REEL_TICK_INTERVAL_MS = 90;
 const TOAST_DURATION_MS = 1800;
 const PANEL_EFFECT_DURATION_MS = 550;
 const RESULT_OVERLAY_DURATION_MS = 2200;
 const HELP_MODAL_AUTO_CLOSE_MS = 16000;
-const THEME_STORAGE_KEY = 'token-furnace-theme';
-const VOLUME_STORAGE_KEY = 'token-furnace-volume';
+const THEME_STORAGE_KEY = 'lucky-spin-theme';
+const MODE_STORAGE_KEY = 'lucky-spin-mode';
+const VOLUME_STORAGE_KEY = 'lucky-spin-volume';
 const DEFAULT_VOLUME = 0.35;
 
 const UNIVERSAL_SYMBOLS = Object.freeze([
@@ -67,7 +68,7 @@ const THEME_LIBRARY = Object.freeze({
     machineTitle: 'Lantern Festival Spinner',
     machineEyebrow: 'Festival lights',
     flavorText: 'Lanterns, koi, drums, and a lucky-gate jackpot.',
-    guideText: 'Festival charms fill the reels. Build the vault over 24 spins, but MASK combinations can knock your climb backwards.',
+    guideText: 'Festival charms fill the reels. Build the vault over 24 spins, but MASK and BURST combinations can knock your climb backwards.',
     symbols: [
       ...UNIVERSAL_SYMBOLS,
       { key: 'LANTERN', label: 'Lantern', icon: '\u{1F3EE}' },
@@ -75,12 +76,14 @@ const THEME_LIBRARY = Object.freeze({
       { key: 'DRUM', label: 'Drum', icon: '\u{1F941}' },
       { key: 'FAN', label: 'Fan', icon: '\u{1FAAD}' },
       { key: 'MASK', label: 'Mask', icon: '\u{1F3AD}' },
+      { key: 'BURST', label: 'Burst', icon: '\u{1F4A5}' },
       { key: 'TORII', label: 'Gate', icon: '\u26E9\uFE0F' },
       { key: 'MOCHI', label: 'Mochi', icon: '\u{1F361}' },
       { key: 'LUCK', label: 'Lucky', icon: '\u{1F9E7}' },
     ],
     jackpotSymbol: 'LANTERN',
     progressDropSymbol: 'MASK',
+    secondaryProgressDropSymbol: 'BURST',
     progressResetSymbol: 'MASK',
   },
   riviera: {
@@ -89,13 +92,14 @@ const THEME_LIBRARY = Object.freeze({
     machineTitle: 'Riviera Postcard Spinner',
     machineEyebrow: 'Coastal table',
     flavorText: 'Sun-washed tiles, olive branches, and postcard-blue water.',
-    guideText: 'Coastal icons fill this cabinet. The vault is rich, but WAVE combinations can wash progress away before it pays out.',
+    guideText: 'Coastal icons fill this cabinet. The vault is rich, but WAVE and STORM combinations can wash progress away before it pays out.',
     symbols: [
       ...UNIVERSAL_SYMBOLS,
       { key: 'OLIVE', label: 'Olive', icon: '\u{1FAD2}' },
       { key: 'TILE', label: 'Tile', icon: '\u{1F537}' },
       { key: 'LEMON', label: 'Lemon', icon: '\u{1F34B}' },
       { key: 'WAVE', label: 'Wave', icon: '\u{1F30A}' },
+      { key: 'STORM', label: 'Storm', icon: '\u26C8\uFE0F' },
       { key: 'SUN', label: 'Sun', icon: '\u2600\uFE0F' },
       { key: 'SHELL', label: 'Shell', icon: '\u{1F41A}' },
       { key: 'SAIL', label: 'Sail', icon: '\u26F5' },
@@ -103,6 +107,7 @@ const THEME_LIBRARY = Object.freeze({
     ],
     jackpotSymbol: 'SUN',
     progressDropSymbol: 'WAVE',
+    secondaryProgressDropSymbol: 'STORM',
     progressResetSymbol: 'WAVE',
   },
   oasis: {
@@ -111,7 +116,7 @@ const THEME_LIBRARY = Object.freeze({
     machineTitle: 'Oasis Caravan Spinner',
     machineEyebrow: 'Desert route',
     flavorText: 'Palm shade, lamp glow, and a vault hidden beyond the dunes.',
-    guideText: 'Desert icons and warm golds shape this machine. The vault is huge, but MOON combinations can cut or wipe your progress.',
+    guideText: 'Desert icons and warm golds shape this machine. The vault is huge, but MOON and DUST combinations can cut or wipe your progress.',
     symbols: [
       ...UNIVERSAL_SYMBOLS,
       { key: 'PALM', label: 'Palm', icon: '\u{1F334}' },
@@ -120,11 +125,13 @@ const THEME_LIBRARY = Object.freeze({
       { key: 'STAR', label: 'Star', icon: '\u2B50' },
       { key: 'OASIS', label: 'Spring', icon: '\u{1F4A7}' },
       { key: 'FALCON', label: 'Falcon', icon: '\u{1F985}' },
+      { key: 'DUST', label: 'Dust', icon: '\u{1F4A8}' },
       { key: 'GEM', label: 'Gem', icon: '\u{1F48E}' },
       { key: 'MOON', label: 'Moon', icon: '\u{1F319}' },
     ],
     jackpotSymbol: 'LAMP',
     progressDropSymbol: 'MOON',
+    secondaryProgressDropSymbol: 'DUST',
     progressResetSymbol: 'MOON',
   },
 });
@@ -160,12 +167,17 @@ const audioEngine = createAudioEngine();
  * @property {HTMLElement} machineEyebrow
  * @property {HTMLElement} vaultPrize
  * @property {HTMLElement} themeFlavor
+ * @property {HTMLElement} modeFlavor
  * @property {HTMLElement} guideText
  * @property {HTMLElement} jackpotRule
  * @property {HTMLElement} bonusRule
  * @property {HTMLElement} setbackRule
+ * @property {HTMLElement} burstRule
  * @property {HTMLElement} resetRule
  * @property {HTMLElement} helpLauncher
+ * @property {HTMLElement} reels
+ * @property {HTMLElement[]} reelWindows
+ * @property {HTMLButtonElement[]} modeButtons
  * @property {HTMLElement} helpModal
  * @property {HTMLElement} helpMinimizeButton
  * @property {HTMLElement} helpCloseButton
@@ -183,17 +195,24 @@ const audioEngine = createAudioEngine();
 let gameState = createInitialGameState();
 /** @type {ThemeDefinition} */
 let activeTheme = THEME_LIBRARY.festival;
+let activeGameMode = getGameMode(loadStoredMode());
 let overlayTimeoutId = null;
 let helpTimeoutId = null;
 
-initializeApp();
+if (typeof document !== 'undefined') {
+  initializeApp();
+}
+
+export { clampVolume, loadStoredMode, loadStoredTheme, loadStoredVolume };
 
 function initializeApp() {
   try {
     const elements = createAppElements();
-    audioEngine.setVolume(loadStoredVolume());
+    const storedVolume = loadStoredVolume();
+    audioEngine.setVolume(storedVolume);
     applyTheme(loadStoredTheme(), elements, { playAudio: false });
-    syncVolumeUI(elements, loadStoredVolume());
+    applyGameMode(loadStoredMode(), elements, { playAudio: false });
+    syncVolumeUI(elements, storedVolume);
     attachEventListeners(elements);
     renderGameState(gameState, elements);
     openHelpModal(elements, { autoClose: true });
@@ -208,6 +227,8 @@ function createAppElements() {
       getRequiredHtmlElement('#reel0'),
       getRequiredHtmlElement('#reel1'),
       getRequiredHtmlElement('#reel2'),
+      getRequiredHtmlElement('#reel3'),
+      getRequiredHtmlElement('#reel4'),
     ],
     walletCount: getRequiredHtmlElement('#walletCount'),
     spentCount: getRequiredHtmlElement('#spentCount'),
@@ -231,10 +252,12 @@ function createAppElements() {
     machineEyebrow: getRequiredHtmlElement('#machineEyebrow'),
     vaultPrize: getRequiredHtmlElement('#vaultPrize'),
     themeFlavor: getRequiredHtmlElement('#themeFlavor'),
+    modeFlavor: getRequiredHtmlElement('#modeFlavor'),
     guideText: getRequiredHtmlElement('#guideText'),
     jackpotRule: getRequiredHtmlElement('#jackpotRule'),
     bonusRule: getRequiredHtmlElement('#bonusRule'),
     setbackRule: getRequiredHtmlElement('#setbackRule'),
+    burstRule: getRequiredHtmlElement('#burstRule'),
     resetRule: getRequiredHtmlElement('#resetRule'),
     helpLauncher: getRequiredButton('#helpLauncher'),
     helpModal: getRequiredHtmlElement('#helpModal'),
@@ -247,7 +270,10 @@ function createAppElements() {
     resultKicker: getRequiredHtmlElement('#resultKicker'),
     resultValue: getRequiredHtmlElement('#resultValue'),
     resultCaption: getRequiredHtmlElement('#resultCaption'),
+    reels: getRequiredHtmlElement('.reels'),
+    reelWindows: Array.from(document.querySelectorAll('.reel-window')).filter((element) => element instanceof HTMLElement),
     themeButtons: getThemeButtons(),
+    modeButtons: getModeButtons(),
     symbolPool: [...activeTheme.symbols],
   };
 }
@@ -410,9 +436,11 @@ function handleCashOutClick(elements) {
 }
 
 function spinAllReels(elements) {
+  const visibleReels = elements.reelSymbols.slice(0, activeGameMode.reelCount);
+
   return Promise.all(
-    elements.reelSymbols.map((element, index) =>
-      animateReelSymbol(element, REEL_SPIN_DURATIONS_MS[index], elements.symbolPool, index)
+    visibleReels.map((element, index) =>
+      animateReelSymbol(element, activeGameMode.reelSpinDurations[index], elements.symbolPool, index)
     )
   );
 }
@@ -665,6 +693,7 @@ function applyTheme(themeName, elements, options = {}) {
   elements.jackpotRule.innerHTML = createRiskLine(getThemeSymbol(safeTheme, safeTheme.jackpotSymbol)?.icon || '\u{1F3B0}', `Three ${safeTheme.jackpotSymbol} icons: jackpot +${gameConfig.jackpotPayout} tokens`);
   elements.bonusRule.innerHTML = createRiskLine('\u{1F48E}', `Every ${gameConfig.bonusThreshold} spins: vault +${gameConfig.bonusReward} tokens`);
   elements.setbackRule.innerHTML = createRiskLine(getThemeSymbol(safeTheme, safeTheme.progressDropSymbol)?.icon || '\u26A0\uFE0F', `Pair of ${safeTheme.progressDropSymbol} icons: lose ${gameConfig.progressDropAmount} progress`);
+  elements.burstRule.innerHTML = createRiskLine(getThemeSymbol(safeTheme, safeTheme.secondaryProgressDropSymbol)?.icon || '\u{1F4A5}', `Pair of ${safeTheme.secondaryProgressDropSymbol} icons: lose ${gameConfig.secondaryProgressDropAmount} progress`);
   elements.resetRule.innerHTML = createRiskLine(getThemeSymbol(safeTheme, safeTheme.progressResetSymbol)?.icon || '\u{1F4A5}', `Triple ${safeTheme.progressResetSymbol} icons: reset the vault`);
 
   elements.themeButtons.forEach((button) => {
@@ -682,15 +711,34 @@ function applyTheme(themeName, elements, options = {}) {
   syncVolumeUI(elements, audioEngine.getVolume());
 }
 
-function getActiveGameConfig() {
-  return getConfiguredThemeGameConfig(activeTheme);
+function applyGameMode(modeName, elements, options = {}) {
+  const safeMode = getGameMode(modeName);
+
+  activeGameMode = safeMode;
+  persistMode(safeMode.key);
+  syncGameModeUI(elements, safeMode);
+
+  if (options.playAudio) {
+    audioEngine.unlock();
+    audioEngine.playThemeChange(activeTheme.key);
+  }
+
+  renderGameState(gameState, elements);
 }
 
-function getConfiguredThemeGameConfig(theme) {
+function getActiveGameConfig() {
+  return getConfiguredThemeGameConfig(activeTheme, activeGameMode);
+}
+
+function getConfiguredThemeGameConfig(theme, mode = activeGameMode) {
   return {
     ...DEFAULT_GAME_CONFIG,
+    reelCount: mode.reelCount,
+    jackpotMatchCount: mode.jackpotMatchCount,
     jackpotSymbol: theme.jackpotSymbol,
     progressDropSymbol: theme.progressDropSymbol,
+    secondaryProgressDropSymbol: theme.secondaryProgressDropSymbol,
+    secondaryProgressDropAmount: theme.secondaryProgressDropAmount,
     progressResetSymbol: theme.progressResetSymbol,
   };
 }
@@ -709,12 +757,36 @@ function syncReelSymbolsToTheme(elements, symbols) {
   });
 }
 
+function syncGameModeUI(elements, mode) {
+  elements.reels.dataset.reelCount = String(mode.reelCount);
+  elements.reels.style.removeProperty('grid-template-columns');
+
+  elements.reelWindows.forEach((windowElement, index) => {
+    windowElement.classList.toggle('is-hidden', index >= mode.reelCount);
+  });
+
+  elements.modeButtons.forEach((button) => {
+    button.classList.toggle('is-active', button.dataset.modeOption === mode.key);
+  });
+
+  elements.modeFlavor.textContent = mode.description;
+}
+
 function loadStoredTheme() {
   try {
     const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
     return AVAILABLE_THEMES.includes(storedTheme || '') ? storedTheme : AVAILABLE_THEMES[0];
   } catch {
     return AVAILABLE_THEMES[0];
+  }
+}
+
+function loadStoredMode() {
+  try {
+    const storedMode = window.localStorage.getItem(MODE_STORAGE_KEY);
+    return getGameMode(storedMode).key;
+  } catch {
+    return GAME_MODES.classic.key;
   }
 }
 
@@ -732,6 +804,14 @@ function persistTheme(themeName) {
     window.localStorage.setItem(THEME_STORAGE_KEY, themeName);
   } catch {
     // Ignore storage failures and keep the in-memory theme.
+  }
+}
+
+function persistMode(modeName) {
+  try {
+    window.localStorage.setItem(MODE_STORAGE_KEY, modeName);
+  } catch {
+    // Ignore storage failures and keep the in-memory mode.
   }
 }
 
@@ -755,6 +835,12 @@ function clampVolume(volume) {
 
 function getThemeButtons() {
   return Array.from(document.querySelectorAll('[data-theme-option]')).filter(
+    (element) => element instanceof HTMLButtonElement
+  );
+}
+
+function getModeButtons() {
+  return Array.from(document.querySelectorAll('[data-mode-option]')).filter(
     (element) => element instanceof HTMLButtonElement
   );
 }
