@@ -15,6 +15,27 @@ const PANEL_EFFECT_DURATION_MS = 550;
 const RESULT_OVERLAY_DURATION_MS = 2200;
 const THEME_STORAGE_KEY = 'token-furnace-theme';
 
+const THEME_AUDIO_LIBRARY = Object.freeze({
+  festival: {
+    baseFrequency: 392,
+    scale: [0, 4, 7, 12],
+    waveType: 'triangle',
+    accentWaveType: 'sine',
+  },
+  riviera: {
+    baseFrequency: 330,
+    scale: [0, 3, 7, 10],
+    waveType: 'sine',
+    accentWaveType: 'triangle',
+  },
+  oasis: {
+    baseFrequency: 294,
+    scale: [0, 2, 5, 9],
+    waveType: 'triangle',
+    accentWaveType: 'sine',
+  },
+});
+
 const THEME_LIBRARY = Object.freeze({
   festival: {
     key: 'festival',
@@ -82,6 +103,7 @@ const THEME_LIBRARY = Object.freeze({
 });
 
 const AVAILABLE_THEMES = Object.freeze(Object.keys(THEME_LIBRARY));
+const audioEngine = createAudioEngine();
 
 /** @typedef {{ key: string, label: string, icon: string }} ThemeSymbol */
 /** @typedef {typeof THEME_LIBRARY[keyof typeof THEME_LIBRARY]} ThemeDefinition */
@@ -135,7 +157,7 @@ initializeApp();
 function initializeApp() {
   try {
     const elements = createAppElements();
-    applyTheme(loadStoredTheme(), elements);
+    applyTheme(loadStoredTheme(), elements, { playAudio: false });
     attachEventListeners(elements);
     renderGameState(gameState, elements);
   } catch (error) {
@@ -203,7 +225,7 @@ function attachEventListeners(elements) {
       }
 
       hideResultOverlay(elements);
-      applyTheme(button.dataset.themeOption || AVAILABLE_THEMES[0], elements);
+      applyTheme(button.dataset.themeOption || AVAILABLE_THEMES[0], elements, { playAudio: true });
     });
   });
 }
@@ -238,6 +260,8 @@ async function handleSpinClick(elements) {
   hideResultOverlay(elements);
 
   try {
+    audioEngine.unlock();
+    audioEngine.playSpinStart(activeTheme.key);
     const paidSpinState = startSpin(gameState, gameConfig);
 
     gameState = {
@@ -260,6 +284,7 @@ async function handleSpinClick(elements) {
     };
 
     playSpinEffects(resolution, elements);
+    audioEngine.playOutcome(resolution, activeTheme.key);
     setStatusMessage(elements, resolution.statusMessage);
     renderGameState(gameState, elements);
     showResultOverlay(elements, getResultStateForSpin(resolution, gameConfig));
@@ -293,6 +318,8 @@ function handleCashOutClick(elements) {
     flashMachinePanel(elements.machinePanel, 'loss-flash');
     triggerVibration(20);
     queueToast(elements, `-${resolution.tokensRemoved} tokens for slides`);
+    audioEngine.unlock();
+    audioEngine.playCashOut(activeTheme.key, resolution.tokensRemoved);
   }
 
   if (resolution.pityRefillAwarded > 0) {
@@ -307,12 +334,12 @@ function handleCashOutClick(elements) {
 function spinAllReels(elements) {
   return Promise.all(
     elements.reelSymbols.map((element, index) =>
-      animateReelSymbol(element, REEL_SPIN_DURATIONS_MS[index], elements.symbolPool)
+      animateReelSymbol(element, REEL_SPIN_DURATIONS_MS[index], elements.symbolPool, index)
     )
   );
 }
 
-function animateReelSymbol(reelElement, durationMs, symbolPool) {
+function animateReelSymbol(reelElement, durationMs, symbolPool, reelIndex) {
   reelElement.classList.add('spinning');
 
   const timerId = window.setInterval(() => {
@@ -325,6 +352,7 @@ function animateReelSymbol(reelElement, durationMs, symbolPool) {
       reelElement.classList.remove('spinning');
       const finalSymbol = pickRandomSymbol(symbolPool);
       renderReelSymbol(reelElement, finalSymbol);
+      audioEngine.playReelStop(activeTheme.key, reelIndex);
       resolve(finalSymbol.key);
     }, durationMs);
   });
@@ -540,11 +568,12 @@ function pickRandomSymbol(symbolPool) {
   return symbolPool[randomIndex];
 }
 
-function applyTheme(themeName, elements) {
+function applyTheme(themeName, elements, options = {}) {
   const safeTheme = THEME_LIBRARY[themeName] || THEME_LIBRARY[AVAILABLE_THEMES[0]];
   const gameConfig = getConfiguredThemeGameConfig(safeTheme);
 
   activeTheme = safeTheme;
+  audioEngine.setTheme(safeTheme.key);
   elements.symbolPool = [...safeTheme.symbols];
   document.body.dataset.theme = safeTheme.key;
   persistTheme(safeTheme.key);
@@ -565,6 +594,11 @@ function applyTheme(themeName, elements) {
 
   syncReelSymbolsToTheme(elements, safeTheme.symbols);
   renderGameState(gameState, elements);
+
+  if (options.playAudio) {
+    audioEngine.unlock();
+    audioEngine.playThemeChange(safeTheme.key);
+  }
 }
 
 function getActiveGameConfig() {
@@ -627,6 +661,168 @@ function getRequiredButton(selector) {
   }
 
   return element;
+}
+
+/**
+ * Creates a lightweight theme-aware audio engine using the Web Audio API.
+ * @returns {{
+ *   unlock: () => void,
+ *   setTheme: (themeKey: string) => void,
+ *   playSpinStart: (themeKey: string) => void,
+ *   playReelStop: (themeKey: string, reelIndex: number) => void,
+ *   playOutcome: (resolution: { outcome: { payout: number, kind: string, resetsProgress?: boolean }, bonusAwarded: number, progressLost: number }, themeKey: string) => void,
+ *   playCashOut: (themeKey: string, tokensRemoved: number) => void,
+ *   playThemeChange: (themeKey: string) => void,
+ * }}
+ */
+function createAudioEngine() {
+  /** @type {AudioContext | null} */
+  let context = null;
+  let themeKey = AVAILABLE_THEMES[0];
+
+  function ensureContext() {
+    if (typeof window.AudioContext === 'undefined' && typeof window.webkitAudioContext === 'undefined') {
+      return null;
+    }
+
+    if (!context) {
+      const AudioCtor = window.AudioContext || window.webkitAudioContext;
+      context = new AudioCtor();
+    }
+
+    return context;
+  }
+
+  function unlock() {
+    const audioContext = ensureContext();
+
+    if (!audioContext || audioContext.state === 'running') {
+      return;
+    }
+
+    void audioContext.resume();
+  }
+
+  function setTheme(nextThemeKey) {
+    themeKey = THEME_AUDIO_LIBRARY[nextThemeKey] ? nextThemeKey : AVAILABLE_THEMES[0];
+  }
+
+  function getProfile(nextThemeKey = themeKey) {
+    return THEME_AUDIO_LIBRARY[nextThemeKey] || THEME_AUDIO_LIBRARY[AVAILABLE_THEMES[0]];
+  }
+
+  function semitoneToFrequency(baseFrequency, semitoneOffset) {
+    return baseFrequency * 2 ** (semitoneOffset / 12);
+  }
+
+  function playTone({
+    frequency,
+    waveType,
+    duration,
+    gain,
+    delay = 0,
+    detune = 0,
+  }) {
+    const audioContext = ensureContext();
+
+    if (!audioContext) {
+      return;
+    }
+
+    const osc = audioContext.createOscillator();
+    const amp = audioContext.createGain();
+
+    osc.type = waveType;
+    osc.frequency.value = frequency;
+    osc.detune.value = detune;
+    amp.gain.value = 0;
+
+    osc.connect(amp);
+    amp.connect(audioContext.destination);
+
+    const startTime = audioContext.currentTime + delay;
+    const attack = Math.min(0.02, duration / 4);
+    const release = Math.min(0.06, duration / 3);
+
+    amp.gain.setValueAtTime(0, startTime);
+    amp.gain.linearRampToValueAtTime(gain, startTime + attack);
+    amp.gain.setValueAtTime(gain, Math.max(startTime + attack, startTime + duration - release));
+    amp.gain.linearRampToValueAtTime(0.001, startTime + duration);
+
+    osc.start(startTime);
+    osc.stop(startTime + duration + 0.02);
+  }
+
+  function playScale(themeProfile, steps, noteDuration, gain, delayStep = 0.1, detune = 0) {
+    steps.forEach((step, index) => {
+      playTone({
+        frequency: semitoneToFrequency(themeProfile.baseFrequency, step),
+        waveType: index % 2 === 0 ? themeProfile.waveType : themeProfile.accentWaveType,
+        duration: noteDuration,
+        gain,
+        delay: index * delayStep,
+        detune,
+      });
+    });
+  }
+
+  function playSpinStart(nextThemeKey = themeKey) {
+    const profile = getProfile(nextThemeKey);
+    playScale(profile, [0, 4, 7], 0.11, 0.04, 0.08, -2);
+  }
+
+  function playReelStop(nextThemeKey = themeKey, reelIndex = 0) {
+    const profile = getProfile(nextThemeKey);
+    playTone({
+      frequency: semitoneToFrequency(profile.baseFrequency, profile.scale[(reelIndex + 1) % profile.scale.length]),
+      waveType: profile.accentWaveType,
+      duration: 0.09,
+      gain: 0.045,
+      detune: reelIndex * 4,
+    });
+  }
+
+  function playOutcome(resolution, nextThemeKey = themeKey) {
+    const profile = getProfile(nextThemeKey);
+
+    if (resolution.bonusAwarded > 0) {
+      playScale(profile, [0, 4, 7, 12], 0.14, 0.055, 0.11);
+      return;
+    }
+
+    if (resolution.outcome.payout > 0) {
+      playScale(profile, [0, 3, 7], 0.13, 0.05, 0.1);
+      return;
+    }
+
+    if (resolution.progressLost > 0 || resolution.outcome.resetsProgress) {
+      playScale(profile, [0, -2, -5], 0.11, 0.045, 0.09);
+      return;
+    }
+
+    playScale(profile, [0, -3], 0.1, 0.04, 0.08);
+  }
+
+  function playCashOut(nextThemeKey = themeKey, tokensRemoved = 0) {
+    const profile = getProfile(nextThemeKey);
+    const descent = tokensRemoved > 0 ? [-2, -5, -9] : [-7, -12];
+    playScale(profile, descent, 0.1, 0.04, 0.08);
+  }
+
+  function playThemeChange(nextThemeKey = themeKey) {
+    const profile = getProfile(nextThemeKey);
+    playScale(profile, [0, 5, 9], 0.09, 0.035, 0.07, 2);
+  }
+
+  return {
+    unlock,
+    setTheme,
+    playSpinStart,
+    playReelStop,
+    playOutcome,
+    playCashOut,
+    playThemeChange,
+  };
 }
 
 function getRequiredTemplate(selector) {
