@@ -636,6 +636,10 @@ function applyTheme(themeName, elements, options = {}) {
  */
 function applyGameMode(modeName, elements, options = {}) {
   try {
+    if (gameState.isSpinning) {
+      return;
+    }
+
     const safeMode = getGameMode(modeName);
 
     activeGameMode = safeMode;
@@ -735,6 +739,7 @@ function syncGameModeUI(elements, mode) {
 
   elements.modeButtons.forEach((button) => {
     button.classList.toggle('is-active', button.dataset.modeOption === mode.key);
+    button.setAttribute('aria-pressed', String(button.dataset.modeOption === mode.key));
   });
 
   elements.modeFlavor.textContent = mode.description;
@@ -1435,6 +1440,10 @@ function renderGameState(elements) {
     const bonusRatio = config.bonusThreshold > 0 ? gameState.bonusProgress / config.bonusThreshold : 0;
     const bonusPercent = Math.max(0, Math.min(100, bonusRatio * 100));
 
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.dataset.spinning = String(gameState.isSpinning);
+    }
+
     elements.walletCount.textContent = String(gameState.wallet);
     elements.wonCount.textContent = String(gameState.won);
     elements.spentCount.textContent = String(gameState.spent);
@@ -1457,6 +1466,10 @@ function renderGameState(elements) {
 
     elements.spinButton.disabled = gameState.isSpinning || !canAffordSpin(gameState.wallet, config);
     elements.cashOutButton.disabled = gameState.isSpinning || gameState.wallet <= 0;
+    elements.modeButtons.forEach((button) => {
+      button.disabled = gameState.isSpinning;
+      button.setAttribute('aria-disabled', String(gameState.isSpinning));
+    });
 
     renderSpinHistory(elements);
   } catch (error) {
@@ -1766,6 +1779,10 @@ function attachEventListeners(elements) {
 
   elements.modeButtons.forEach((button) => {
     button.addEventListener('click', () => {
+      if (gameState.isSpinning || button.disabled) {
+        return;
+      }
+
       applyGameMode(button.dataset.modeOption || GAME_MODES.classic.key, elements, { playAudio: true });
     });
   });
