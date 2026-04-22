@@ -21,6 +21,9 @@
   --reel-face-bottom: #ffe8aa;
   --reel-border: rgba(255, 201, 74, 0.9);
   --reel-ink: #11315f;
+  --help-bg-top: rgba(255, 250, 240, 0.98);
+  --help-bg-bottom: rgba(245, 236, 214, 0.98);
+  --help-ink: #1d1733;
 }
 
 body[data-theme='festival'] {
@@ -36,6 +39,9 @@ body[data-theme='festival'] {
   --reel-face-bottom: #ffd595;
   --reel-border: rgba(255, 209, 102, 0.92);
   --reel-ink: #6b1838;
+  --help-bg-top: rgba(255, 243, 214, 0.99);
+  --help-bg-bottom: rgba(255, 225, 178, 0.99);
+  --help-ink: #4d1d2f;
 }
 
 body[data-theme='riviera'] {
@@ -52,6 +58,9 @@ body[data-theme='riviera'] {
   --reel-face-bottom: #d8f2ea;
   --reel-border: rgba(91, 192, 235, 0.82);
   --reel-ink: #0f4c5c;
+  --help-bg-top: rgba(240, 251, 255, 0.99);
+  --help-bg-bottom: rgba(219, 242, 250, 0.99);
+  --help-ink: #10324a;
 }
 
 body[data-theme='oasis'] {
@@ -67,6 +76,9 @@ body[data-theme='oasis'] {
   --reel-face-bottom: #f0cf95;
   --reel-border: rgba(246, 189, 96, 0.9);
   --reel-ink: #6c3a1e;
+  --help-bg-top: rgba(255, 245, 230, 0.99);
+  --help-bg-bottom: rgba(249, 220, 168, 0.99);
+  --help-ink: #5b3924;
 }
 
 * {
@@ -657,8 +669,9 @@ h2 {
   width: min(42rem, calc(100vw - 1.5rem));
   padding: 1rem;
   border-radius: 28px;
-  background: linear-gradient(180deg, rgba(255, 250, 240, 0.98), rgba(245, 236, 214, 0.98));
-  color: var(--ink);
+  background: linear-gradient(180deg, var(--help-bg-top), var(--help-bg-bottom));
+  color: var(--help-ink);
+  border: 2px solid rgba(255, 255, 255, 0.18);
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
 }
 

@@ -13,6 +13,7 @@ const REEL_TICK_INTERVAL_MS = 90;
 const TOAST_DURATION_MS = 1800;
 const PANEL_EFFECT_DURATION_MS = 550;
 const RESULT_OVERLAY_DURATION_MS = 2200;
+const HELP_MODAL_AUTO_CLOSE_MS = 16000;
 const THEME_STORAGE_KEY = 'token-furnace-theme';
 const VOLUME_STORAGE_KEY = 'token-furnace-volume';
 const DEFAULT_VOLUME = 0.35;
@@ -183,6 +184,7 @@ let gameState = createInitialGameState();
 /** @type {ThemeDefinition} */
 let activeTheme = THEME_LIBRARY.festival;
 let overlayTimeoutId = null;
+let helpTimeoutId = null;
 
 initializeApp();
 
@@ -194,6 +196,7 @@ function initializeApp() {
     syncVolumeUI(elements, loadStoredVolume());
     attachEventListeners(elements);
     renderGameState(gameState, elements);
+    openHelpModal(elements, { autoClose: true });
   } catch (error) {
     console.error('Unable to initialize the slot machine UI.', error);
   }
@@ -293,7 +296,14 @@ function attachEventListeners(elements) {
     persistVolume(volume);
     syncVolumeUI(elements, volume);
   });
+
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !elements.helpModal.hidden) {
+      closeHelpModal(elements);
+    }
+  });
 }
+
 
 
 function renderGameState(state, elements) {
@@ -777,13 +787,30 @@ function getRequiredRangeInput(selector) {
   return element;
 }
 
-function openHelpModal(elements) {
+function openHelpModal(elements, options = {}) {
+  if (helpTimeoutId) {
+    window.clearTimeout(helpTimeoutId);
+    helpTimeoutId = null;
+  }
+
   elements.helpModal.hidden = false;
   elements.helpModal.classList.remove('is-minimized');
+  elements.helpMinimizeButton.textContent = 'Minimize';
   elements.helpLauncher.setAttribute('aria-expanded', 'true');
+
+  if (options.autoClose !== false) {
+    helpTimeoutId = window.setTimeout(() => {
+      closeHelpModal(elements);
+    }, HELP_MODAL_AUTO_CLOSE_MS);
+  }
 }
 
 function closeHelpModal(elements) {
+  if (helpTimeoutId) {
+    window.clearTimeout(helpTimeoutId);
+    helpTimeoutId = null;
+  }
+
   elements.helpModal.hidden = true;
   elements.helpModal.classList.remove('is-minimized');
   elements.helpLauncher.setAttribute('aria-expanded', 'false');
@@ -804,8 +831,8 @@ function toggleHelpModalMinimized(elements) {
     return;
   }
 
-  elements.helpModal.classList.toggle('is-minimized');
-  elements.helpMinimizeButton.textContent = elements.helpModal.classList.contains('is-minimized') ? 'Expand' : 'Minimize';
+  const minimized = elements.helpModal.classList.toggle('is-minimized');
+  elements.helpMinimizeButton.textContent = minimized ? 'Expand' : 'Minimize';
 }
 
 /**
