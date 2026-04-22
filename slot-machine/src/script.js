@@ -24,6 +24,23 @@ const UNIVERSAL_SYMBOLS = Object.freeze([
   { key: 'LUCKY7', label: 'Lucky 7', icon: '7\uFE0F\u20E3' },
 ]);
 
+const SYMBOL_VISUAL_TUNING = Object.freeze({
+  BURST: Object.freeze({ shiftX: '0.08em', shiftY: '0', scale: '0.94' }),
+  CHERRY: Object.freeze({ shiftX: '-0.03em', shiftY: '0', scale: '0.88' }),
+  COAST: Object.freeze({ shiftX: '0.03em', shiftY: '0', scale: '0.96' }),
+  DIAMOND: Object.freeze({ shiftX: '0.01em', shiftY: '0', scale: '0.95' }),
+  DUST: Object.freeze({ shiftX: '0.04em', shiftY: '0', scale: '0.95' }),
+  FALCON: Object.freeze({ shiftX: '0.03em', shiftY: '0', scale: '0.95' }),
+  LEMON: Object.freeze({ shiftX: '0.02em', shiftY: '0', scale: '0.97' }),
+  LUCKY7: Object.freeze({ shiftX: '0', shiftY: '-0.02em', scale: '0.92' }),
+  MOCHI: Object.freeze({ shiftX: '0.02em', shiftY: '0', scale: '0.96' }),
+  OLIVE: Object.freeze({ shiftX: '0.01em', shiftY: '0', scale: '0.89' }),
+  OASIS: Object.freeze({ shiftX: '0.02em', shiftY: '0', scale: '0.95' }),
+  SHELL: Object.freeze({ shiftX: '0.02em', shiftY: '0', scale: '0.95' }),
+  STORM: Object.freeze({ shiftX: '0.04em', shiftY: '0', scale: '0.95' }),
+  WAVE: Object.freeze({ shiftX: '0.03em', shiftY: '0', scale: '0.95' }),
+});
+
 const THEME_AUDIO_LIBRARY = Object.freeze({
   festival: {
     baseFrequency: 392,
@@ -566,7 +583,16 @@ function triggerVibration(pattern) {
  */
 function renderReelSymbol(element, symbol) {
   element.setAttribute('aria-label', symbol.label);
-  element.innerHTML = `<span class="symbol-icon" aria-hidden="true">${symbol.icon}</span>`;
+  const visualTuning = SYMBOL_VISUAL_TUNING[symbol.key] || { shiftX: '0', shiftY: '0', scale: '1' };
+
+  element.innerHTML = `
+    <span class="symbol-icon" aria-hidden="true">
+      <span
+        class="symbol-glyph"
+        style="--symbol-shift-x: ${visualTuning.shiftX}; --symbol-shift-y: ${visualTuning.shiftY}; --symbol-scale: ${visualTuning.scale};"
+      >${symbol.icon}</span>
+    </span>
+  `;
 }
 
 /**
