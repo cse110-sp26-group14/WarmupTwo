@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  DEFAULT_GAME_CONFIG,
   calculateCashOutAmount,
   canAffordSpin,
   createInitialGameState,
@@ -11,16 +12,19 @@ import {
   startSpin,
 } from '../src/game-logic.js';
 
-test('evaluateSpinResult returns the BOT jackpot payout', () => {
-  const result = evaluateSpinResult(['BOT', 'BOT', 'BOT']);
+test('evaluateSpinResult returns the configured jackpot payout', () => {
+  const result = evaluateSpinResult(
+    ['LANTERN', 'LANTERN', 'LANTERN'],
+    { ...DEFAULT_GAME_CONFIG, jackpotSymbol: 'LANTERN' }
+  );
 
-  assert.equal(result.payout, 30);
+  assert.equal(result.payout, DEFAULT_GAME_CONFIG.jackpotPayout);
   assert.equal(result.kind, 'win');
 });
 
 test('evaluateSpinResult rejects invalid reel data', () => {
   assert.throws(() => {
-    evaluateSpinResult(['BOT']);
+    evaluateSpinResult(['LANTERN']);
   }, /Expected exactly 3 reel symbols/);
 });
 
@@ -28,7 +32,7 @@ test('startSpin deducts tokens and blocks unaffordable spins', () => {
   const startedState = startSpin(createInitialGameState({ wallet: 10 }));
 
   assert.equal(startedState.wallet, 7);
-  assert.equal(startedState.spent, 3);
+  assert.equal(startedState.spent, DEFAULT_GAME_CONFIG.spinCost);
   assert.equal(canAffordSpin(startedState.wallet), true);
 
   assert.throws(() => {
@@ -36,22 +40,22 @@ test('startSpin deducts tokens and blocks unaffordable spins', () => {
   }, /Not enough tokens to spin/);
 });
 
-test('finishSpin applies pair payouts and the five-spin bonus reward', () => {
+test('finishSpin applies pair payouts and the long bonus reward', () => {
   const startingState = createInitialGameState({
     wallet: 10,
-    spins: 4,
-    bonusProgress: 4,
+    spins: DEFAULT_GAME_CONFIG.bonusThreshold - 1,
+    bonusProgress: DEFAULT_GAME_CONFIG.bonusThreshold - 1,
   });
   const paidSpinState = startSpin(startingState);
-  const resolution = finishSpin(paidSpinState, ['GPU', 'GPU', 'TOKEN']);
+  const resolution = finishSpin(paidSpinState, ['KOI', 'KOI', 'DRUM']);
 
-  assert.equal(resolution.outcome.payout, 6);
-  assert.equal(resolution.bonusAwarded, 8);
-  assert.equal(resolution.nextState.wallet, 21);
-  assert.equal(resolution.nextState.won, 14);
-  assert.equal(resolution.nextState.spins, 5);
+  assert.equal(resolution.outcome.payout, DEFAULT_GAME_CONFIG.pairPayout);
+  assert.equal(resolution.bonusAwarded, DEFAULT_GAME_CONFIG.bonusReward);
+  assert.equal(resolution.nextState.wallet, 88);
+  assert.equal(resolution.nextState.won, 81);
+  assert.equal(resolution.nextState.spins, DEFAULT_GAME_CONFIG.bonusThreshold);
   assert.equal(resolution.nextState.bonusProgress, 0);
-  assert.equal(resolution.nextState.lastPayout, 14);
+  assert.equal(resolution.nextState.lastPayout, 81);
 });
 
 test('finishSpin applies the comeback refill when the wallet is drained', () => {
@@ -59,8 +63,8 @@ test('finishSpin applies the comeback refill when the wallet is drained', () => 
   const resolution = finishSpin(paidSpinState, ['PROMPT', 'GPU', 'TOKEN']);
 
   assert.equal(resolution.outcome.payout, 0);
-  assert.equal(resolution.pityRefillAwarded, 12);
-  assert.equal(resolution.nextState.wallet, 12);
+  assert.equal(resolution.pityRefillAwarded, DEFAULT_GAME_CONFIG.pityRefill);
+  assert.equal(resolution.nextState.wallet, DEFAULT_GAME_CONFIG.pityRefill);
 });
 
 test('calculateCashOutAmount never overspends an empty wallet', () => {
@@ -82,7 +86,7 @@ test('resolveCashOut deducts tokens and can trigger a refill', () => {
   const resolution = resolveCashOut(createInitialGameState({ wallet: 4 }));
 
   assert.equal(resolution.tokensRemoved, 2);
-  assert.equal(resolution.pityRefillAwarded, 12);
+  assert.equal(resolution.pityRefillAwarded, DEFAULT_GAME_CONFIG.pityRefill);
   assert.equal(resolution.nextState.wallet, 14);
   assert.equal(resolution.nextState.spent, 2);
 });
