@@ -155,6 +155,89 @@ let overlayTimeoutId = null;
 let helpTimeoutId = null;
 
 /**
+ * Return a timestamp for animation timing, with a fallback for environments
+ * where the Performance API is unavailable.
+ *
+ * @returns {number}
+ */
+function getNow() {
+  return typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now();
+}
+
+/**
+ * Schedule one animation step using requestAnimationFrame when available.
+ * The timeout fallback keeps reel animation alive in stricter environments.
+ *
+ * @param {(timestamp: number) => void} callback
+ * @returns {void}
+ */
+function scheduleAnimationFrame(callback) {
+  if (typeof window.requestAnimationFrame === 'function') {
+    window.requestAnimationFrame(callback);
+    return;
+  }
+
+  window.setTimeout(() => {
+    callback(getNow());
+  }, 16);
+}
+
+/**
+ * Check whether a value is an HTMLElement in the current runtime.
+ *
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isHTMLElement(value) {
+  return typeof HTMLElement !== 'undefined' && value instanceof HTMLElement;
+}
+
+/**
+ * Check whether a value is an HTMLTemplateElement in the current runtime.
+ *
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isHTMLTemplateElement(value) {
+  return typeof HTMLTemplateElement !== 'undefined' && value instanceof HTMLTemplateElement;
+}
+
+/**
+ * Centralized runtime error reporting so recoverable failures do not crash
+ * the entire game loop.
+ *
+ * @param {Partial<AppElements> | null | undefined} elements
+ * @param {unknown} error
+ * @param {string} context
+ * @returns {void}
+ */
+function reportRuntimeError(elements, error, context) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const userMessage = `Runtime issue during ${context}. Please try again.`;
+
+  console.error(`[slot-machine] ${context}:`, errorMessage);
+
+  if (!elements) {
+    return;
+  }
+
+  if (isHTMLElement(elements.statusLine)) {
+    elements.statusLine.textContent = userMessage;
+  }
+
+  if (isHTMLElement(elements.feedbackPill)) {
+    elements.feedbackPill.textContent = 'System check';
+    elements.feedbackPill.className = 'feedback-pill loss';
+  }
+
+  if (isHTMLElement(elements.toastStack) && isHTMLTemplateElement(elements.toastTemplate)) {
+    queueToast(/** @type {AppElements} */ (elements), userMessage);
+  }
+}
+
+/**
  * Build the temporary result overlay state. The overlay mirrors the actual
  * match count so a normal win, a triple hit, and a five-of-a-kind do not all
  * feel identical when they land.
@@ -228,24 +311,35 @@ function getResultStateForSpin(resolution, gameConfig) {
  * @returns {void}
  */
 function recordSpinHistory(reelSymbols, resolution) {
-  const symbolSnapshots = reelSymbols.map((symbolKey) => {
-    const symbol = getThemeSymbol(activeTheme, symbolKey);
+  try {
+    const safeReelSymbols = Array.isArray(reelSymbols) ? reelSymbols : [];
+    const safeResolution = typeof resolution === 'object' && resolution !== null ? resolution : null;
 
-    return symbol || { key: symbolKey, label: symbolKey, icon: symbolKey };
-  });
+    if (!safeResolution || typeof safeResolution.nextState !== 'object' || typeof safeResolution.outcome !== 'object') {
+      throw new TypeError('Missing spin resolution data for history.');
+    }
 
-  spinHistory = [
-    {
-      spinNumber: resolution.nextState.spins,
-      resultKind: resolution.outcome.payout > 0 ? (resolution.outcome.matchCount >= 5 ? 'jackpot' : resolution.outcome.matchCount >= 3 ? 'triple' : 'win') : resolution.outcome.kind,
-      resultLabel: buildSpinHistoryLabel(resolution),
-      payout: resolution.totalPayout,
-      progressAfter: resolution.nextState.bonusProgress,
-      progressDelta: resolution.progressLost,
-      symbols: symbolSnapshots,
-    },
-    ...spinHistory,
-  ].slice(0, MAX_SPIN_HISTORY);
+    const symbolSnapshots = safeReelSymbols.map((symbolKey) => {
+      const symbol = getThemeSymbol(activeTheme, symbolKey);
+
+      return symbol || { key: symbolKey, label: symbolKey, icon: symbolKey };
+    });
+
+    spinHistory = [
+      {
+        spinNumber: safeResolution.nextState.spins,
+        resultKind: safeResolution.outcome.payout > 0 ? (safeResolution.outcome.matchCount >= 5 ? 'jackpot' : safeResolution.outcome.matchCount >= 3 ? 'triple' : 'win') : safeResolution.outcome.kind,
+        resultLabel: buildSpinHistoryLabel(safeResolution),
+        payout: safeResolution.totalPayout,
+        progressAfter: safeResolution.nextState.bonusProgress,
+        progressDelta: safeResolution.progressLost,
+        symbols: symbolSnapshots,
+      },
+      ...spinHistory,
+    ].slice(0, MAX_SPIN_HISTORY);
+  } catch (error) {
+    reportRuntimeError(null, error, 'history record');
+  }
 }
 
 /**
@@ -256,39 +350,47 @@ function recordSpinHistory(reelSymbols, resolution) {
  * @returns {void}
  */
 function renderSpinHistory(elements) {
-  if (!elements.spinHistoryList) {
-    return;
+  try {
+    if (!elements.spinHistoryList) {
+      return;
+    }
+
+    if (spinHistory.length === 0) {
+      elements.spinHistoryList.innerHTML = '<li class="spin-history-empty" id="spinHistoryEmpty">No spins yet. The last five results will appear here.</li>';
+      return;
+    }
+
+    elements.spinHistoryList.innerHTML = spinHistory
+      .map((entry) => {
+        const symbolsMarkup = entry.symbols
+          .map((symbol) => `<span class="spin-history-symbol" title="${symbol.label}"><span aria-hidden="true">${symbol.icon}</span><strong>${symbol.label}</strong></span>`)
+          .join('');
+
+        const progressLabel = entry.progressDelta > 0 ? `-${entry.progressDelta} progress` : entry.progressDelta < 0 ? `+${Math.abs(entry.progressDelta)} progress` : 'steady';
+
+        return `
+          <li class="spin-history-item ${entry.resultKind}">
+            <div class="spin-history-meta">
+              <strong>Spin ${entry.spinNumber}</strong>
+              <span>${entry.resultLabel}</span>
+              <span>${entry.payout > 0 ? `+${entry.payout} tokens` : 'No payout'}</span>
+            </div>
+            <div class="spin-history-symbols">${symbolsMarkup}</div>
+            <div class="spin-history-meta">
+              <span>Vault ${entry.progressAfter}</span>
+              <span>${progressLabel}</span>
+            </div>
+          </li>
+        `;
+      })
+      .join('');
+  } catch (error) {
+    reportRuntimeError(elements, error, 'history render');
+
+    if (elements.spinHistoryList && typeof elements.spinHistoryList.innerHTML === 'string') {
+      elements.spinHistoryList.innerHTML = '<li class="spin-history-empty">Spin history is temporarily unavailable.</li>';
+    }
   }
-
-  if (spinHistory.length === 0) {
-    elements.spinHistoryList.innerHTML = '<li class="spin-history-empty" id="spinHistoryEmpty">No spins yet. The last five results will appear here.</li>';
-    return;
-  }
-
-  elements.spinHistoryList.innerHTML = spinHistory
-    .map((entry) => {
-      const symbolsMarkup = entry.symbols
-        .map((symbol) => `<span class="spin-history-symbol" title="${symbol.label}"><span aria-hidden="true">${symbol.icon}</span><strong>${symbol.label}</strong></span>`)
-        .join('');
-
-      const progressLabel = entry.progressDelta > 0 ? `-${entry.progressDelta} progress` : entry.progressDelta < 0 ? `+${Math.abs(entry.progressDelta)} progress` : 'steady';
-
-      return `
-        <li class="spin-history-item ${entry.resultKind}">
-          <div class="spin-history-meta">
-            <strong>Spin ${entry.spinNumber}</strong>
-            <span>${entry.resultLabel}</span>
-            <span>${entry.payout > 0 ? `+${entry.payout} tokens` : 'No payout'}</span>
-          </div>
-          <div class="spin-history-symbols">${symbolsMarkup}</div>
-          <div class="spin-history-meta">
-            <span>Vault ${entry.progressAfter}</span>
-            <span>${progressLabel}</span>
-          </div>
-        </li>
-      `;
-    })
-    .join('');
 }
 
 /**
@@ -325,19 +427,36 @@ function buildSpinHistoryLabel(resolution) {
  * @returns {void}
  */
 function showResultOverlay(elements, state) {
-  if (overlayTimeoutId) {
-    window.clearTimeout(overlayTimeoutId);
+  try {
+    if (!isHTMLElement(elements.resultOverlay) || !isHTMLElement(elements.resultOverlayCard)) {
+      return;
+    }
+
+    if (overlayTimeoutId) {
+      window.clearTimeout(overlayTimeoutId);
+    }
+
+    elements.resultOverlay.classList.add('visible');
+    elements.resultOverlayCard.className = `result-overlay-card ${state.kind}`;
+
+    if (isHTMLElement(elements.resultKicker)) {
+      elements.resultKicker.textContent = state.kicker;
+    }
+
+    if (isHTMLElement(elements.resultValue)) {
+      elements.resultValue.textContent = state.value;
+    }
+
+    if (isHTMLElement(elements.resultCaption)) {
+      elements.resultCaption.textContent = state.caption;
+    }
+
+    overlayTimeoutId = window.setTimeout(() => {
+      hideResultOverlay(elements);
+    }, RESULT_OVERLAY_DURATION_MS);
+  } catch (error) {
+    reportRuntimeError(elements, error, 'result overlay');
   }
-
-  elements.resultOverlay.classList.add('visible');
-  elements.resultOverlayCard.className = `result-overlay-card ${state.kind}`;
-  elements.resultKicker.textContent = state.kicker;
-  elements.resultValue.textContent = state.value;
-  elements.resultCaption.textContent = state.caption;
-
-  overlayTimeoutId = window.setTimeout(() => {
-    hideResultOverlay(elements);
-  }, RESULT_OVERLAY_DURATION_MS);
 }
 
 /**
@@ -347,12 +466,18 @@ function showResultOverlay(elements, state) {
  * @returns {void}
  */
 function hideResultOverlay(elements) {
-  if (overlayTimeoutId) {
-    window.clearTimeout(overlayTimeoutId);
-    overlayTimeoutId = null;
-  }
+  try {
+    if (overlayTimeoutId) {
+      window.clearTimeout(overlayTimeoutId);
+      overlayTimeoutId = null;
+    }
 
-  elements.resultOverlay.classList.remove('visible');
+    if (isHTMLElement(elements.resultOverlay)) {
+      elements.resultOverlay.classList.remove('visible');
+    }
+  } catch (error) {
+    reportRuntimeError(elements, error, 'result overlay hide');
+  }
 }
 
 /**
@@ -363,7 +488,9 @@ function hideResultOverlay(elements) {
  * @returns {void}
  */
 function setStatusMessage(elements, message) {
-  elements.statusLine.textContent = message;
+  if (elements.statusLine && 'textContent' in elements.statusLine) {
+    elements.statusLine.textContent = String(message);
+  }
 }
 
 /**
@@ -374,24 +501,32 @@ function setStatusMessage(elements, message) {
  * @returns {void}
  */
 function queueToast(elements, message) {
-  const templateChild = elements.toastTemplate.content.firstElementChild;
+  try {
+    if (!isHTMLTemplateElement(elements.toastTemplate) || !isHTMLElement(elements.toastStack)) {
+      return;
+    }
 
-  if (!(templateChild instanceof HTMLElement)) {
-    return;
+    const templateChild = elements.toastTemplate.content.firstElementChild;
+
+    if (!isHTMLElement(templateChild)) {
+      return;
+    }
+
+    const toast = templateChild.cloneNode(true);
+
+    if (!isHTMLElement(toast)) {
+      return;
+    }
+
+    toast.textContent = String(message);
+    elements.toastStack.appendChild(toast);
+
+    window.setTimeout(() => {
+      toast.remove();
+    }, TOAST_DURATION_MS);
+  } catch (error) {
+    reportRuntimeError(elements, error, 'toast render');
   }
-
-  const toast = templateChild.cloneNode(true);
-
-  if (!(toast instanceof HTMLElement)) {
-    return;
-  }
-
-  toast.textContent = message;
-  elements.toastStack.appendChild(toast);
-
-  window.setTimeout(() => {
-    toast.remove();
-  }, TOAST_DURATION_MS);
 }
 
 /**
@@ -453,39 +588,43 @@ function pickRandomSymbol(symbolPool) {
  * @returns {void}
  */
 function applyTheme(themeName, elements, options = {}) {
-  const safeTheme = THEME_LIBRARY[themeName] || THEME_LIBRARY[AVAILABLE_THEMES[0]];
-  const gameConfig = getConfiguredThemeGameConfig(safeTheme);
+  try {
+    const safeTheme = THEME_LIBRARY[themeName] || THEME_LIBRARY[AVAILABLE_THEMES[0]];
+    const gameConfig = getConfiguredThemeGameConfig(safeTheme);
 
-  activeTheme = safeTheme;
-  audioEngine.setTheme(safeTheme.key);
-  elements.symbolPool = [...safeTheme.symbols];
-  document.body.dataset.theme = safeTheme.key;
-  persistTheme(safeTheme.key);
+    activeTheme = safeTheme;
+    audioEngine.setTheme(safeTheme.key);
+    elements.symbolPool = [...safeTheme.symbols];
+    document.body.dataset.theme = safeTheme.key;
+    persistTheme(safeTheme.key);
 
-  elements.machineTitle.textContent = safeTheme.machineTitle;
-  elements.machineEyebrow.textContent = safeTheme.machineEyebrow;
-  elements.themeFlavor.textContent = safeTheme.flavorText;
-  elements.guideText.textContent = safeTheme.guideText;
-  elements.vaultPrize.textContent = `${gameConfig.bonusReward} tokens`;
-  elements.jackpotRule.innerHTML = createRiskLine(getThemeSymbol(safeTheme, safeTheme.jackpotSymbol)?.icon || '\u{1F3B0}', `Three ${safeTheme.jackpotSymbol} icons: jackpot +${gameConfig.jackpotPayout} tokens`);
-  elements.bonusRule.innerHTML = createRiskLine('\u{1F48E}', `Every ${gameConfig.bonusThreshold} spins: vault +${gameConfig.bonusReward} tokens`);
-  elements.setbackRule.innerHTML = createRiskLine(getThemeSymbol(safeTheme, safeTheme.progressDropSymbol)?.icon || '\u26A0\uFE0F', `Pair of ${safeTheme.progressDropSymbol} icons: lose ${gameConfig.progressDropAmount} progress`);
-  elements.burstRule.innerHTML = createRiskLine(getThemeSymbol(safeTheme, safeTheme.secondaryProgressDropSymbol)?.icon || '\u{1F4A5}', `Pair of ${safeTheme.secondaryProgressDropSymbol} icons: lose ${gameConfig.secondaryProgressDropAmount} progress`);
-  elements.resetRule.innerHTML = createRiskLine(getThemeSymbol(safeTheme, safeTheme.progressResetSymbol)?.icon || '\u{1F4A5}', `Triple ${safeTheme.progressResetSymbol} icons: reset the vault`);
+    elements.machineTitle.textContent = safeTheme.machineTitle;
+    elements.machineEyebrow.textContent = safeTheme.machineEyebrow;
+    elements.themeFlavor.textContent = safeTheme.flavorText;
+    elements.guideText.textContent = safeTheme.guideText;
+    elements.vaultPrize.textContent = `${gameConfig.bonusReward} tokens`;
+    elements.jackpotRule.innerHTML = createRiskLine(getThemeSymbol(safeTheme, safeTheme.jackpotSymbol)?.icon || '\u{1F3B0}', `${gameConfig.jackpotMatchCount} ${safeTheme.jackpotSymbol} icons: jackpot +${gameConfig.jackpotPayout} tokens`);
+    elements.bonusRule.innerHTML = createRiskLine('\u{1F48E}', `Every ${gameConfig.bonusThreshold} spins: vault +${gameConfig.bonusReward} tokens`);
+    elements.setbackRule.innerHTML = createRiskLine(getThemeSymbol(safeTheme, safeTheme.progressDropSymbol)?.icon || '\u26A0\uFE0F', `Pair of ${safeTheme.progressDropSymbol} icons: lose ${gameConfig.progressDropAmount} progress`);
+    elements.burstRule.innerHTML = createRiskLine(getThemeSymbol(safeTheme, safeTheme.secondaryProgressDropSymbol)?.icon || '\u{1F4A5}', `Pair of ${safeTheme.secondaryProgressDropSymbol} icons: lose ${gameConfig.secondaryProgressDropAmount} progress`);
+    elements.resetRule.innerHTML = createRiskLine(getThemeSymbol(safeTheme, safeTheme.progressResetSymbol)?.icon || '\u{1F4A5}', `Triple ${safeTheme.progressResetSymbol} icons: reset the vault`);
 
-  elements.themeButtons.forEach((button) => {
-    button.classList.toggle('is-active', button.dataset.themeOption === safeTheme.key);
-  });
+    elements.themeButtons.forEach((button) => {
+      button.classList.toggle('is-active', button.dataset.themeOption === safeTheme.key);
+    });
 
-  syncReelSymbolsToTheme(elements, safeTheme.symbols);
-  renderGameState(elements);
+    syncReelSymbolsToTheme(elements, safeTheme.symbols);
+    renderGameState(elements);
 
-  if (options.playAudio) {
-    audioEngine.unlock();
-    audioEngine.playThemeChange(safeTheme.key);
+    if (options.playAudio) {
+      audioEngine.unlock();
+      audioEngine.playThemeChange(safeTheme.key);
+    }
+
+    syncVolumeUI(elements, audioEngine.getVolume());
+  } catch (error) {
+    reportRuntimeError(elements, error, 'theme update');
   }
-
-  syncVolumeUI(elements, audioEngine.getVolume());
 }
 
 /**
@@ -496,19 +635,23 @@ function applyTheme(themeName, elements, options = {}) {
  * @returns {void}
  */
 function applyGameMode(modeName, elements, options = {}) {
-  const safeMode = getGameMode(modeName);
+  try {
+    const safeMode = getGameMode(modeName);
 
-  activeGameMode = safeMode;
-  persistMode(safeMode.key);
-  document.body.dataset.mode = safeMode.key;
-  syncGameModeUI(elements, safeMode);
+    activeGameMode = safeMode;
+    persistMode(safeMode.key);
+    document.body.dataset.mode = safeMode.key;
+    syncGameModeUI(elements, safeMode);
 
-  if (options.playAudio) {
-    audioEngine.unlock();
-    audioEngine.playThemeChange(activeTheme.key);
+    if (options.playAudio) {
+      audioEngine.unlock();
+      audioEngine.playThemeChange(activeTheme.key);
+    }
+
+    renderGameState(elements);
+  } catch (error) {
+    reportRuntimeError(elements, error, 'mode switch');
   }
-
-  renderGameState(elements);
 }
 
 /**
@@ -1287,34 +1430,38 @@ function getRequiredTemplate(selector) {
  * @returns {void}
  */
 function renderGameState(elements) {
-  const config = getActiveGameConfig();
-  const bonusRatio = config.bonusThreshold > 0 ? gameState.bonusProgress / config.bonusThreshold : 0;
-  const bonusPercent = Math.max(0, Math.min(100, bonusRatio * 100));
+  try {
+    const config = getActiveGameConfig();
+    const bonusRatio = config.bonusThreshold > 0 ? gameState.bonusProgress / config.bonusThreshold : 0;
+    const bonusPercent = Math.max(0, Math.min(100, bonusRatio * 100));
 
-  elements.walletCount.textContent = String(gameState.wallet);
-  elements.wonCount.textContent = String(gameState.won);
-  elements.spentCount.textContent = String(gameState.spent);
-  elements.streakCount.textContent = `${gameState.streak} win${gameState.streak === 1 ? '' : 's'}`;
-  elements.lastPayout.textContent = `${gameState.lastPayout} tokens`;
-  elements.spinCount.textContent = String(gameState.spins);
-  elements.moodText.textContent = getMoodText(gameState, config);
-  elements.statusLine.textContent = gameState.feedbackText;
-  elements.feedbackPill.textContent = gameState.feedbackText;
-  elements.feedbackPill.className = `feedback-pill ${gameState.feedbackKind}`;
+    elements.walletCount.textContent = String(gameState.wallet);
+    elements.wonCount.textContent = String(gameState.won);
+    elements.spentCount.textContent = String(gameState.spent);
+    elements.streakCount.textContent = `${gameState.streak} win${gameState.streak === 1 ? '' : 's'}`;
+    elements.lastPayout.textContent = `${gameState.lastPayout} tokens`;
+    elements.spinCount.textContent = String(gameState.spins);
+    elements.moodText.textContent = getMoodText(gameState, config);
+    elements.statusLine.textContent = gameState.feedbackText;
+    elements.feedbackPill.textContent = gameState.feedbackText;
+    elements.feedbackPill.className = `feedback-pill ${gameState.feedbackKind}`;
 
-  elements.bonusText.textContent = `${gameState.bonusProgress} / ${config.bonusThreshold} spins`;
-  elements.bonusAlert.textContent = gameState.bonusProgress >= config.bonusThreshold - 1
-    ? `Next spin unlocks the vault for +${config.bonusReward} tokens.`
-    : `${config.bonusThreshold - gameState.bonusProgress} spins until the vault opens.`;
-  elements.bonusFill.style.width = `${bonusPercent}%`;
-  elements.bonusCluster.classList.toggle('warm', bonusPercent >= 25 && bonusPercent < 65);
-  elements.bonusCluster.classList.toggle('heated', bonusPercent >= 65 && bonusPercent < 100);
-  elements.bonusCluster.classList.toggle('imminent', bonusPercent >= 100 || gameState.bonusProgress >= config.bonusThreshold - 1);
+    elements.bonusText.textContent = `${gameState.bonusProgress} / ${config.bonusThreshold} spins`;
+    elements.bonusAlert.textContent = gameState.bonusProgress >= config.bonusThreshold - 1
+      ? `Next spin unlocks the vault for +${config.bonusReward} tokens.`
+      : `${config.bonusThreshold - gameState.bonusProgress} spins until the vault opens.`;
+    elements.bonusFill.style.width = `${bonusPercent}%`;
+    elements.bonusCluster.classList.toggle('warm', bonusPercent >= 25 && bonusPercent < 65);
+    elements.bonusCluster.classList.toggle('heated', bonusPercent >= 65 && bonusPercent < 100);
+    elements.bonusCluster.classList.toggle('imminent', bonusPercent >= 100 || gameState.bonusProgress >= config.bonusThreshold - 1);
 
-  elements.spinButton.disabled = gameState.isSpinning || !canAffordSpin(gameState.wallet, config);
-  elements.cashOutButton.disabled = gameState.isSpinning || gameState.wallet <= 0;
+    elements.spinButton.disabled = gameState.isSpinning || !canAffordSpin(gameState.wallet, config);
+    elements.cashOutButton.disabled = gameState.isSpinning || gameState.wallet <= 0;
 
-  renderSpinHistory(elements);
+    renderSpinHistory(elements);
+  } catch (error) {
+    reportRuntimeError(elements, error, 'state render');
+  }
 }
 
 /**
@@ -1325,74 +1472,85 @@ function renderGameState(elements) {
  * @returns {Promise<void>}
  */
 async function handleSpinClick(elements) {
-  const config = getActiveGameConfig();
+  try {
+    const config = getActiveGameConfig();
 
-  if (gameState.isSpinning) {
-    return;
-  }
+    if (gameState.isSpinning) {
+      return;
+    }
 
-  if (!canAffordSpin(gameState.wallet, config)) {
-    setStatusMessage(elements, 'Not enough tokens to spin yet.');
-    queueToast(elements, 'The machine wants a few more tokens first.');
-    triggerVibration(60);
+    if (!canAffordSpin(gameState.wallet, config)) {
+      setStatusMessage(elements, 'Not enough tokens to spin yet.');
+      queueToast(elements, 'The machine wants a few more tokens first.');
+      triggerVibration(60);
+      renderGameState(elements);
+      return;
+    }
+
+    closeHelpModal(elements);
+    hideResultOverlay(elements);
+
+    gameState = {
+      ...startSpin(gameState, config),
+      isSpinning: true,
+      feedbackKind: 'spinning',
+      feedbackText: 'Reels are rolling...',
+    };
     renderGameState(elements);
-    return;
-  }
 
-  closeHelpModal(elements);
-  hideResultOverlay(elements);
+    audioEngine.unlock();
+    audioEngine.playSpinStart(activeTheme.key);
+    triggerVibration([25, 20, 35]);
 
-  gameState = {
-    ...startSpin(gameState, config),
-    isSpinning: true,
-    feedbackKind: 'spinning',
-    feedbackText: 'Reels are rolling...',
-  };
-  renderGameState(elements);
+    const reelSymbols = await spinAllReels(elements, config);
+    const resolution = finishSpin(gameState, reelSymbols, config);
 
-  audioEngine.unlock();
-  audioEngine.playSpinStart(activeTheme.key);
-  triggerVibration([25, 20, 35]);
+    gameState = {
+      ...resolution.nextState,
+      feedbackKind: resolution.bonusAwarded > 0 ? 'bonus' : resolution.outcome.payout > 0 ? 'win' : 'loss',
+      feedbackText: resolution.statusMessage,
+    };
 
-  const reelSymbols = await spinAllReels(elements, config);
-  const resolution = finishSpin(gameState, reelSymbols, config);
+    recordSpinHistory(reelSymbols, resolution);
+    renderGameState(elements);
+    setStatusMessage(elements, resolution.statusMessage);
+    showResultOverlay(elements, getResultStateForSpin(resolution, config));
+    audioEngine.playOutcome(resolution, activeTheme.key);
 
-  gameState = {
-    ...resolution.nextState,
-    feedbackKind: resolution.bonusAwarded > 0 ? 'bonus' : resolution.outcome.payout > 0 ? 'win' : 'loss',
-    feedbackText: resolution.statusMessage,
-  };
+    if (resolution.outcome.matchCount >= 5) {
+      flashMachinePanel(elements.machinePanel, 'mega-win-flash');
+      queueToast(elements, 'Five of a kind. That is a proper cabinet hit.');
+      triggerVibration([90, 45, 90]);
+      return;
+    }
 
-  recordSpinHistory(reelSymbols, resolution);
-  renderGameState(elements);
-  setStatusMessage(elements, resolution.statusMessage);
-  showResultOverlay(elements, getResultStateForSpin(resolution, config));
-  audioEngine.playOutcome(resolution, activeTheme.key);
+    if (resolution.outcome.matchCount >= 3) {
+      flashMachinePanel(elements.machinePanel, 'win-flash');
+      queueToast(elements, 'Three of a kind. Nice pull.');
+      triggerVibration([50, 25, 50]);
+      return;
+    }
 
-  if (resolution.outcome.matchCount >= 5) {
-    flashMachinePanel(elements.machinePanel, 'mega-win-flash');
-    queueToast(elements, 'Five of a kind. That is a proper cabinet hit.');
-    triggerVibration([90, 45, 90]);
-    return;
-  }
+    if (resolution.outcome.payout > 0) {
+      flashMachinePanel(elements.machinePanel, 'win-flash');
+      queueToast(elements, 'The cabinet paid out.');
+      triggerVibration(40);
+      return;
+    }
 
-  if (resolution.outcome.matchCount >= 3) {
-    flashMachinePanel(elements.machinePanel, 'win-flash');
-    queueToast(elements, 'Three of a kind. Nice pull.');
-    triggerVibration([50, 25, 50]);
-    return;
-  }
-
-  if (resolution.outcome.payout > 0) {
-    flashMachinePanel(elements.machinePanel, 'win-flash');
-    queueToast(elements, 'The cabinet paid out.');
-    triggerVibration(40);
-    return;
-  }
-
-  if (resolution.progressLost > 0 || resolution.outcome.resetsProgress) {
-    flashMachinePanel(elements.machinePanel, 'loss-flash');
-    queueToast(elements, 'The vault slipped backward.');
+    if (resolution.progressLost > 0 || resolution.outcome.resetsProgress) {
+      flashMachinePanel(elements.machinePanel, 'loss-flash');
+      queueToast(elements, 'The vault slipped backward.');
+    }
+  } catch (error) {
+    gameState = {
+      ...gameState,
+      isSpinning: false,
+      feedbackKind: 'loss',
+      feedbackText: 'Spin failed unexpectedly. The cabinet has recovered.',
+    };
+    reportRuntimeError(elements, error, 'spin');
+    renderGameState(elements);
   }
 }
 
@@ -1404,31 +1562,42 @@ async function handleSpinClick(elements) {
  * @returns {void}
  */
 function handleCashOutClick(elements) {
-  const config = getActiveGameConfig();
+  try {
+    const config = getActiveGameConfig();
 
-  if (gameState.isSpinning) {
-    return;
+    if (gameState.isSpinning) {
+      return;
+    }
+
+    closeHelpModal(elements);
+    hideResultOverlay(elements);
+
+    const resolution = resolveCashOut(gameState, config);
+    gameState = {
+      ...resolution.nextState,
+      feedbackKind: resolution.tokensRemoved > 0 ? 'bonus' : 'ready',
+      feedbackText: resolution.statusMessage,
+    };
+
+    setStatusMessage(elements, resolution.statusMessage);
+    queueToast(elements, resolution.statusMessage);
+    audioEngine.playCashOut(activeTheme.key, resolution.tokensRemoved);
+
+    if (resolution.tokensRemoved > 0) {
+      triggerVibration([18, 18, 18]);
+    }
+
+    renderGameState(elements);
+  } catch (error) {
+    gameState = {
+      ...gameState,
+      isSpinning: false,
+      feedbackKind: 'loss',
+      feedbackText: 'Cash-out failed unexpectedly. Try again.',
+    };
+    reportRuntimeError(elements, error, 'cash out');
+    renderGameState(elements);
   }
-
-  closeHelpModal(elements);
-  hideResultOverlay(elements);
-
-  const resolution = resolveCashOut(gameState, config);
-  gameState = {
-    ...resolution.nextState,
-    feedbackKind: resolution.tokensRemoved > 0 ? 'bonus' : 'ready',
-    feedbackText: resolution.statusMessage,
-  };
-
-  setStatusMessage(elements, resolution.statusMessage);
-  queueToast(elements, resolution.statusMessage);
-  audioEngine.playCashOut(activeTheme.key, resolution.tokensRemoved);
-
-  if (resolution.tokensRemoved > 0) {
-    triggerVibration([18, 18, 18]);
-  }
-
-  renderGameState(elements);
 }
 
 /**
@@ -1440,6 +1609,10 @@ function handleCashOutClick(elements) {
  * @returns {Promise<string[]>}
  */
 async function spinAllReels(elements, config) {
+  if (!Array.isArray(elements.symbolPool) || elements.symbolPool.length === 0) {
+    throw new Error('The current theme did not provide reel symbols.');
+  }
+
   const finalSymbols = Array.from({ length: config.reelCount }, () => pickRandomSymbol(elements.symbolPool).key);
 
   for (let index = 0; index < config.reelCount; index += 1) {
@@ -1447,6 +1620,10 @@ async function spinAllReels(elements, config) {
     const reelElement = elements.reelSymbols[index];
     const reelSymbol = elements.symbolPool.find((symbol) => symbol.key === finalSymbols[index]) || elements.symbolPool[0];
     const duration = activeGameMode.reelSpinDurations[index] || activeGameMode.reelSpinDurations[activeGameMode.reelSpinDurations.length - 1];
+
+    if (!(reelWindow instanceof HTMLElement) || !(reelElement instanceof HTMLElement)) {
+      throw new Error(`Missing reel element at index ${index}.`);
+    }
 
     await animateReelSymbol(reelWindow, reelElement, reelSymbol, index, elements.symbolPool, duration);
     audioEngine.playReelStop(activeTheme.key, index);
@@ -1633,18 +1810,22 @@ function attachEventListeners(elements) {
  * @returns {void}
  */
 function initializeApp() {
-  const elements = buildAppElements();
+  try {
+    const elements = buildAppElements();
 
-  gameState = createInitialGameState();
-  audioEngine.setVolume(loadStoredVolume());
-  syncVolumeUI(elements, audioEngine.getVolume());
+    gameState = createInitialGameState();
+    audioEngine.setVolume(loadStoredVolume());
+    syncVolumeUI(elements, audioEngine.getVolume());
 
-  applyGameMode(loadStoredMode(), elements);
-  applyTheme(loadStoredTheme(), elements);
+    applyGameMode(loadStoredMode(), elements);
+    applyTheme(loadStoredTheme(), elements);
 
-  attachEventListeners(elements);
-  renderGameState(elements);
-  openHelpModal(elements);
+    attachEventListeners(elements);
+    renderGameState(elements);
+    openHelpModal(elements);
+  } catch (error) {
+    reportRuntimeError(null, error, 'application startup');
+  }
 }
 
 function bootWhenReady() {
@@ -1676,6 +1857,4 @@ export {
   renderSpinHistory,
   recordSpinHistory,
 };
-
-
 
