@@ -9,7 +9,6 @@ import {
 } from './game-logic.js';
 import { GAME_MODES, getGameMode } from './game-modes.js';
 
-const REEL_TICK_INTERVAL_MS = 90;
 const TOAST_DURATION_MS = 1800;
 const PANEL_EFFECT_DURATION_MS = 550;
 const RESULT_OVERLAY_DURATION_MS = 2200;
@@ -138,560 +137,39 @@ const THEME_LIBRARY = Object.freeze({
 
 const AVAILABLE_THEMES = Object.freeze(Object.keys(THEME_LIBRARY));
 const audioEngine = createAudioEngine();
+const MAX_SPIN_HISTORY = 5;
+const REEL_START_INTERVAL_MS = 38;
+const REEL_END_INTERVAL_MS = 160;
 
-/** @typedef {{ key: string, label: string, icon: string }} ThemeSymbol */
-/** @typedef {typeof THEME_LIBRARY[keyof typeof THEME_LIBRARY]} ThemeDefinition */
-
-/**
- * @typedef {Object} AppElements
- * @property {HTMLElement[]} reelSymbols
- * @property {HTMLElement} walletCount
- * @property {HTMLElement} spentCount
- * @property {HTMLElement} wonCount
- * @property {HTMLElement} streakCount
- * @property {HTMLElement} spinCount
- * @property {HTMLElement} lastPayout
- * @property {HTMLElement} moodText
- * @property {HTMLElement} statusLine
- * @property {HTMLButtonElement} spinButton
- * @property {HTMLButtonElement} cashOutButton
- * @property {HTMLElement} machinePanel
- * @property {HTMLTemplateElement} toastTemplate
- * @property {HTMLElement} toastStack
- * @property {HTMLElement} bonusText
- * @property {HTMLElement} bonusFill
- * @property {HTMLElement} bonusCluster
- * @property {HTMLElement} bonusAlert
- * @property {HTMLElement} feedbackPill
- * @property {HTMLElement} machineTitle
- * @property {HTMLElement} machineEyebrow
- * @property {HTMLElement} vaultPrize
- * @property {HTMLElement} themeFlavor
- * @property {HTMLElement} modeFlavor
- * @property {HTMLElement} guideText
- * @property {HTMLElement} jackpotRule
- * @property {HTMLElement} bonusRule
- * @property {HTMLElement} setbackRule
- * @property {HTMLElement} burstRule
- * @property {HTMLElement} resetRule
- * @property {HTMLElement} helpLauncher
- * @property {HTMLElement} reels
- * @property {HTMLElement[]} reelWindows
- * @property {HTMLButtonElement[]} modeButtons
- * @property {HTMLElement} helpModal
- * @property {HTMLElement} helpMinimizeButton
- * @property {HTMLElement} helpCloseButton
- * @property {HTMLInputElement} volumeSlider
- * @property {HTMLElement} volumeValue
- * @property {HTMLElement} resultOverlay
- * @property {HTMLElement} resultOverlayCard
- * @property {HTMLElement} resultKicker
- * @property {HTMLElement} resultValue
- * @property {HTMLElement} resultCaption
- * @property {HTMLButtonElement[]} themeButtons
- * @property {ThemeSymbol[]} symbolPool
- */
-
+/** @type {typeof THEME_LIBRARY[keyof typeof THEME_LIBRARY]} */
+let activeTheme = THEME_LIBRARY[AVAILABLE_THEMES[0]];
+/** @type {import('./game-modes.js').GameMode} */
+let activeGameMode = GAME_MODES.classic;
+/** @type {import('./game-logic.js').GameState} */
 let gameState = createInitialGameState();
-/** @type {ThemeDefinition} */
-let activeTheme = THEME_LIBRARY.festival;
-let activeGameMode = getGameMode(loadStoredMode());
+/** @type {Array<{ spinNumber: number, resultKind: string, resultLabel: string, payout: number, progressAfter: number, progressDelta: number, symbols: Array<{ key: string, label: string, icon: string }> }>} */
+let spinHistory = [];
+/** @type {number | null} */
 let overlayTimeoutId = null;
+/** @type {number | null} */
 let helpTimeoutId = null;
 
-if (typeof document !== 'undefined') {
-  initializeApp();
-}
-
-export { clampVolume, loadStoredMode, loadStoredTheme, loadStoredVolume };
-
 /**
- * Initialize the slot machine app and wire the first render.
+ * Build the temporary result overlay state. The overlay mirrors the actual
+ * match count so a normal win, a triple hit, and a five-of-a-kind do not all
+ * feel identical when they land.
  *
- * @returns {void}
- */
-function initializeApp() {
-  try {
-    const elements = createAppElements();
-    const storedVolume = loadStoredVolume();
-    audioEngine.setVolume(storedVolume);
-    applyTheme(loadStoredTheme(), elements, { playAudio: false });
-    applyGameMode(loadStoredMode(), elements, { playAudio: false });
-    syncVolumeUI(elements, storedVolume);
-    attachEventListeners(elements);
-    renderGameState(gameState, elements);
-    openHelpModal(elements, { autoClose: true });
-  } catch (error) {
-    console.error('Unable to initialize the slot machine UI.', error);
-  }
-}
-
-/**
- * Collect the required DOM nodes for the app shell.
- *
- * @returns {void}
- */
-function createAppElements() {
-  return {
-    reelSymbols: [
-      getRequiredHtmlElement('#reel0'),
-      getRequiredHtmlElement('#reel1'),
-      getRequiredHtmlElement('#reel2'),
-      getRequiredHtmlElement('#reel3'),
-      getRequiredHtmlElement('#reel4'),
-    ],
-    walletCount: getRequiredHtmlElement('#walletCount'),
-    spentCount: getRequiredHtmlElement('#spentCount'),
-    wonCount: getRequiredHtmlElement('#wonCount'),
-    streakCount: getRequiredHtmlElement('#streakCount'),
-    spinCount: getRequiredHtmlElement('#spinCount'),
-    lastPayout: getRequiredHtmlElement('#lastPayout'),
-    moodText: getRequiredHtmlElement('#moodText'),
-    statusLine: getRequiredHtmlElement('#statusLine'),
-    spinButton: getRequiredButton('#spinButton'),
-    cashOutButton: getRequiredButton('#cashOutButton'),
-    machinePanel: getRequiredHtmlElement('.machine-panel'),
-    toastTemplate: getRequiredTemplate('#toastTemplate'),
-    toastStack: getRequiredHtmlElement('#toastStack'),
-    bonusText: getRequiredHtmlElement('#bonusText'),
-    bonusFill: getRequiredHtmlElement('#bonusFill'),
-    bonusCluster: getRequiredHtmlElement('#bonusCluster'),
-    bonusAlert: getRequiredHtmlElement('#bonusAlert'),
-    feedbackPill: getRequiredHtmlElement('#feedbackPill'),
-    machineTitle: getRequiredHtmlElement('#machineTitle'),
-    machineEyebrow: getRequiredHtmlElement('#machineEyebrow'),
-    vaultPrize: getRequiredHtmlElement('#vaultPrize'),
-    themeFlavor: getRequiredHtmlElement('#themeFlavor'),
-    modeFlavor: getRequiredHtmlElement('#modeFlavor'),
-    guideText: getRequiredHtmlElement('#guideText'),
-    jackpotRule: getRequiredHtmlElement('#jackpotRule'),
-    bonusRule: getRequiredHtmlElement('#bonusRule'),
-    setbackRule: getRequiredHtmlElement('#setbackRule'),
-    burstRule: getRequiredHtmlElement('#burstRule'),
-    resetRule: getRequiredHtmlElement('#resetRule'),
-    helpLauncher: getRequiredButton('#helpLauncher'),
-    helpModal: getRequiredHtmlElement('#helpModal'),
-    helpMinimizeButton: getRequiredButton('#helpMinimizeButton'),
-    helpCloseButton: getRequiredButton('#helpCloseButton'),
-    volumeSlider: getRequiredRangeInput('#volumeSlider'),
-    volumeValue: getRequiredHtmlElement('#volumeValue'),
-    resultOverlay: getRequiredHtmlElement('#resultOverlay'),
-    resultOverlayCard: getRequiredHtmlElement('#resultOverlayCard'),
-    resultKicker: getRequiredHtmlElement('#resultKicker'),
-    resultValue: getRequiredHtmlElement('#resultValue'),
-    resultCaption: getRequiredHtmlElement('#resultCaption'),
-    reels: getRequiredHtmlElement('.reels'),
-    reelWindows: Array.from(document.querySelectorAll('.reel-window')).filter((element) => element instanceof HTMLElement),
-    themeButtons: getThemeButtons(),
-    modeButtons: getModeButtons(),
-    symbolPool: [...activeTheme.symbols],
-  };
-}
-
-/**
- * Attach UI event handlers for spins, modes, themes, and settings.
- *
- * @param {*} elements
- * @returns {void}
- */
-function attachEventListeners(elements) {
-  elements.spinButton.addEventListener('click', () => {
-    void handleSpinClick(elements);
-  });
-
-  elements.cashOutButton.addEventListener('click', () => {
-    handleCashOutClick(elements);
-  });
-
-  elements.themeButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      if (gameState.isSpinning) {
-        return;
-      }
-
-      hideResultOverlay(elements);
-      applyTheme(button.dataset.themeOption || AVAILABLE_THEMES[0], elements, { playAudio: true });
-    });
-  });
-
-  elements.modeButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      if (gameState.isSpinning) {
-        return;
-      }
-
-      hideResultOverlay(elements);
-      applyGameMode(button.dataset.modeOption || GAME_MODES.classic.key, elements, { playAudio: true });
-    });
-  });
-
-  elements.helpLauncher.addEventListener('click', () => {
-    toggleHelpModal(elements);
-  });
-
-  elements.helpCloseButton.addEventListener('click', () => {
-    closeHelpModal(elements);
-  });
-
-  elements.helpMinimizeButton.addEventListener('click', () => {
-    toggleHelpModalMinimized(elements);
-  });
-
-  elements.helpModal.addEventListener('click', (event) => {
-    if (event.target instanceof HTMLElement && event.target.dataset.helpClose === 'true') {
-      closeHelpModal(elements);
-    }
-  });
-
-  elements.volumeSlider.addEventListener('input', () => {
-    const volume = Number(elements.volumeSlider.value) / 100;
-    audioEngine.setVolume(volume);
-    persistVolume(volume);
-    syncVolumeUI(elements, volume);
-  });
-
-  window.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !elements.helpModal.hidden) {
-      closeHelpModal(elements);
-    }
-  });
-}
-
-
-
-/**
- * Render the current game state into the visible UI.
- *
- * @param {*} state
- * @param {*} elements
- * @returns {void}
- */
-function renderGameState(state, elements) {
-  const gameConfig = getActiveGameConfig();
-
-  elements.walletCount.textContent = String(state.wallet);
-  elements.spentCount.textContent = String(state.spent);
-  elements.wonCount.textContent = String(state.won);
-  elements.streakCount.textContent = `${state.streak} ${state.streak === 1 ? 'win' : 'wins'}`;
-  elements.spinCount.textContent = String(state.spins);
-  elements.lastPayout.textContent = `${state.lastPayout} tokens`;
-  elements.moodText.textContent = getMoodText(state, gameConfig);
-  elements.feedbackPill.textContent = state.feedbackText;
-  elements.feedbackPill.className = `feedback-pill ${state.feedbackKind}`;
-  elements.bonusText.textContent = `${state.bonusProgress} / ${gameConfig.bonusThreshold} spins`;
-  elements.bonusFill.style.width = `${(state.bonusProgress / gameConfig.bonusThreshold) * 100}%`;
-  updateBonusMeterState(state, elements, gameConfig);
-  elements.spinButton.disabled = state.isSpinning || !canAffordSpin(state.wallet, gameConfig);
-  elements.cashOutButton.disabled = state.isSpinning;
-}
-
-/**
- * Run the full spin flow after the spin button is clicked.
- *
- * @param {*} elements
- * @returns {void}
- */
-async function handleSpinClick(elements) {
-  const gameConfig = getActiveGameConfig();
-
-  if (gameState.isSpinning || !canAffordSpin(gameState.wallet, gameConfig)) {
-    return;
-  }
-
-  const previousState = gameState;
-  hideResultOverlay(elements);
-  closeHelpModal(elements);
-
-  try {
-    audioEngine.unlock();
-    audioEngine.playSpinStart(activeTheme.key);
-    const paidSpinState = startSpin(gameState, gameConfig);
-
-    gameState = {
-      ...paidSpinState,
-      isSpinning: true,
-      feedbackKind: 'spinning',
-      feedbackText: 'Spinning...',
-    };
-
-    setStatusMessage(elements, 'The reels are warming up.');
-    renderGameState(gameState, elements);
-
-    const reelSymbols = await spinAllReels(elements);
-    const resolution = finishSpin(gameState, reelSymbols, gameConfig);
-
-    gameState = {
-      ...resolution.nextState,
-      feedbackKind: getFeedbackKindForSpin(resolution),
-      feedbackText: getFeedbackTextForSpin(resolution),
-    };
-
-    playSpinEffects(resolution, elements);
-    audioEngine.playOutcome(resolution, activeTheme.key);
-    setStatusMessage(elements, resolution.statusMessage);
-    renderGameState(gameState, elements);
-    showResultOverlay(elements, getResultStateForSpin(resolution, gameConfig));
-  } catch (error) {
-    console.error('The spin action failed.', error);
-    gameState = {
-      ...previousState,
-      isSpinning: false,
-      feedbackKind: 'loss',
-      feedbackText: 'Spin failed',
-    };
-    setStatusMessage(elements, 'The machine jammed for a second. Please try again.');
-    renderGameState(gameState, elements);
-  }
-}
-
-/**
- * Resolve the token-to-slides cash-out action.
- *
- * @param {*} elements
- * @returns {void}
- */
-function handleCashOutClick(elements) {
-  if (gameState.isSpinning) {
-    return;
-  }
-
-  closeHelpModal(elements);
-  const resolution = resolveCashOut(gameState, getActiveGameConfig());
-
-  gameState = {
-    ...resolution.nextState,
-    feedbackKind: resolution.tokensRemoved > 0 ? 'loss' : 'ready',
-    feedbackText: resolution.tokensRemoved > 0 ? 'Slides acquired' : 'Wallet empty',
-  };
-
-  if (resolution.tokensRemoved > 0) {
-    flashMachinePanel(elements.machinePanel, 'loss-flash');
-    triggerVibration(20);
-    queueToast(elements, `-${resolution.tokensRemoved} tokens for slides`);
-    audioEngine.unlock();
-    audioEngine.playCashOut(activeTheme.key, resolution.tokensRemoved);
-  }
-
-  if (resolution.pityRefillAwarded > 0) {
-    queueToast(elements, `Refill +${resolution.pityRefillAwarded} tokens`);
-  }
-
-  hideResultOverlay(elements);
-  setStatusMessage(elements, resolution.statusMessage);
-  renderGameState(gameState, elements);
-}
-
-/**
- * Spin the visible reels in parallel and wait for them to finish.
- *
- * @param {*} elements
- * @returns {void}
- */
-function spinAllReels(elements) {
-  const visibleReels = elements.reelSymbols.slice(0, activeGameMode.reelCount);
-
-  return Promise.all(
-    visibleReels.map((element, index) =>
-      animateReelSymbol(element, activeGameMode.reelSpinDurations[index], elements.symbolPool, index)
-    )
-  );
-}
-
-/**
- * Animate one reel until its stop time and return the final symbol key.
- *
- * @param {*} reelElement
- * @param {*} durationMs
- * @param {*} symbolPool
- * @param {*} reelIndex
- * @returns {void}
- */
-function animateReelSymbol(reelElement, durationMs, symbolPool, reelIndex) {
-  const reelWindow = reelElement.closest('.reel-window');
-
-  reelElement.classList.add('spinning');
-  reelWindow?.classList.add('is-spinning');
-
-  return new Promise((resolve) => {
-    const startTime = performance.now();
-    let nextTickAt = startTime;
-    let stopped = false;
-
-    const easeOutCubic = (value) => 1 - (1 - value) ** 3;
-
-    const finishSpin = () => {
-      if (stopped) {
-        return;
-      }
-
-      stopped = true;
-      reelElement.classList.remove('spinning');
-      reelWindow?.classList.remove('is-spinning');
-
-      const finalSymbol = pickRandomSymbol(symbolPool);
-      renderReelSymbol(reelElement, finalSymbol);
-      audioEngine.playReelStop(activeTheme.key, reelIndex);
-      resolve(finalSymbol.key);
-    };
-
-    const step = (now) => {
-      if (stopped) {
-        return;
-      }
-
-      const elapsed = now - startTime;
-      const progress = Math.min(1, elapsed / durationMs);
-
-      if (now >= nextTickAt) {
-        renderReelSymbol(reelElement, pickRandomSymbol(symbolPool));
-
-        const fastTick = 52;
-        const slowTick = 190;
-        nextTickAt = now + fastTick + (slowTick - fastTick) * easeOutCubic(progress);
-      }
-
-      if (progress >= 1) {
-        finishSpin();
-        return;
-      }
-
-      window.requestAnimationFrame(step);
-    };
-
-    window.requestAnimationFrame(step);
-    window.setTimeout(finishSpin, durationMs);
-  });
-}
-
-/**
- * Play UI feedback after a spin resolution is known.
- *
- * @param {*} resolution
- * @param {*} elements
- * @returns {void}
- */
-function playSpinEffects(resolution, elements) {
-  if (resolution.outcome.payout > 0) {
-    flashMachinePanel(elements.machinePanel, 'win-flash');
-    triggerVibration([30, 20, 50]);
-    queueToast(elements, `+${resolution.outcome.payout} tokens`);
-  } else {
-    flashMachinePanel(elements.machinePanel, 'loss-flash');
-    triggerVibration(25);
-  }
-
-  if (resolution.bonusAwarded > 0) {
-    queueToast(elements, `Vault +${resolution.bonusAwarded} tokens`);
-  }
-
-  if (resolution.progressLost > 0) {
-    queueToast(elements, `Vault -${resolution.progressLost} progress`);
-  }
-
-  if (resolution.pityRefillAwarded > 0) {
-    queueToast(elements, `Comeback +${resolution.pityRefillAwarded} tokens`);
-  }
-}
-
-/**
- * Update the vault progress meter styling and copy.
- *
- * @param {*} state
- * @param {*} elements
- * @param {*} gameConfig
- * @returns {void}
- */
-function updateBonusMeterState(state, elements, gameConfig) {
-  const remainingSpins = Math.max(0, gameConfig.bonusThreshold - state.bonusProgress);
-  elements.bonusCluster.classList.remove('warm', 'heated', 'imminent');
-
-  if (remainingSpins <= 1) {
-    elements.bonusCluster.classList.add('imminent');
-  } else if (remainingSpins <= 4) {
-    elements.bonusCluster.classList.add('heated');
-  } else if (remainingSpins <= 8) {
-    elements.bonusCluster.classList.add('warm');
-  }
-
-  elements.bonusAlert.textContent = getBonusAlertText(state, remainingSpins, gameConfig);
-}
-
-/**
- * Build the bonus alert message for the current progress state.
- *
- * @param {*} state
- * @param {*} remainingSpins
- * @param {*} gameConfig
- * @returns {void}
- */
-function getBonusAlertText(state, remainingSpins, gameConfig) {
-  if (remainingSpins === 1) {
-    return `One more spin opens the ${gameConfig.bonusReward}-token vault.`;
-  }
-
-  if (remainingSpins <= 4) {
-    return `${remainingSpins} spins left. One bad combo could still wreck the climb.`;
-  }
-
-  if (remainingSpins <= 8) {
-    return `${remainingSpins} spins left. The vault is finally in sight.`;
-  }
-
-  if (state.spins === 0 || state.bonusProgress > 0) {
-    return `${remainingSpins} spins until the ${gameConfig.bonusReward}-token vault opens.`;
-  }
-
-  return `Vault reset. ${gameConfig.bonusThreshold} spins until the next ${gameConfig.bonusReward}-token payout.`;
-}
-
-/**
- * Map a spin resolution to a feedback pill state.
- *
- * @param {*} resolution
- * @returns {void}
- */
-function getFeedbackKindForSpin(resolution) {
-  if (resolution.bonusAwarded > 0) {
-    return 'bonus';
-  }
-
-  return resolution.outcome.kind;
-}
-
-/**
- * Build the short feedback label for a spin resolution.
- *
- * @param {*} resolution
- * @returns {void}
- */
-function getFeedbackTextForSpin(resolution) {
-  if (resolution.bonusAwarded > 0) {
-    return `Vault +${resolution.bonusAwarded}`;
-  }
-
-  if (resolution.outcome.payout > 0) {
-    return `Win +${resolution.outcome.payout}`;
-  }
-
-  if (resolution.progressLost > 0 || resolution.outcome.resetsProgress) {
-    return 'Progress hit';
-  }
-
-  return 'Try again';
-}
-
-/**
- * Build the temporary result overlay state.
- *
- * @param {*} resolution
- * @param {*} gameConfig
- * @returns {void}
+ * @param {import('./game-logic.js').SpinResolution} resolution
+ * @param {import('./game-logic.js').GameConfig} gameConfig
+ * @returns {{ kind: string, kicker: string, value: string, caption: string }}
  */
 function getResultStateForSpin(resolution, gameConfig) {
+  const matchCount = resolution.outcome.matchCount || 0;
+
   if (resolution.outcome.payout === gameConfig.jackpotPayout) {
     return {
-      kind: 'jackpot',
-      kicker: `${activeTheme.jackpotSymbol} jackpot`,
+      kind: matchCount >= 5 ? 'jackpot' : matchCount >= 3 ? 'triple' : 'jackpot',
+      kicker: matchCount >= 5 ? 'Five of a kind' : matchCount >= 3 ? 'Three of a kind' : `${activeTheme.jackpotSymbol} jackpot`,
       value: `+${resolution.outcome.payout} TOKENS`,
       caption: resolution.statusMessage,
     };
@@ -726,8 +204,8 @@ function getResultStateForSpin(resolution, gameConfig) {
 
   if (resolution.outcome.payout > 0) {
     return {
-      kind: 'win',
-      kicker: activeTheme.buttonLabel,
+      kind: matchCount >= 5 ? 'jackpot' : matchCount >= 3 ? 'triple' : 'win',
+      kicker: matchCount >= 5 ? 'Five of a kind' : matchCount >= 3 ? 'Three of a kind' : activeTheme.buttonLabel,
       value: `+${resolution.outcome.payout} TOKENS`,
       caption: resolution.statusMessage,
     };
@@ -742,10 +220,108 @@ function getResultStateForSpin(resolution, gameConfig) {
 }
 
 /**
+ * Record a finished spin so the player can review the last five outcomes and
+ * see how the vault changed over time.
+ *
+ * @param {string[]} reelSymbols
+ * @param {import('./game-logic.js').SpinResolution} resolution
+ * @returns {void}
+ */
+function recordSpinHistory(reelSymbols, resolution) {
+  const symbolSnapshots = reelSymbols.map((symbolKey) => {
+    const symbol = getThemeSymbol(activeTheme, symbolKey);
+
+    return symbol || { key: symbolKey, label: symbolKey, icon: symbolKey };
+  });
+
+  spinHistory = [
+    {
+      spinNumber: resolution.nextState.spins,
+      resultKind: resolution.outcome.payout > 0 ? (resolution.outcome.matchCount >= 5 ? 'jackpot' : resolution.outcome.matchCount >= 3 ? 'triple' : 'win') : resolution.outcome.kind,
+      resultLabel: buildSpinHistoryLabel(resolution),
+      payout: resolution.totalPayout,
+      progressAfter: resolution.nextState.bonusProgress,
+      progressDelta: resolution.progressLost,
+      symbols: symbolSnapshots,
+    },
+    ...spinHistory,
+  ].slice(0, MAX_SPIN_HISTORY);
+}
+
+/**
+ * Render the last five spins so players can keep a small local trail of their
+ * progress without leaving the cabinet screen.
+ *
+ * @param {AppElements} elements
+ * @returns {void}
+ */
+function renderSpinHistory(elements) {
+  if (!elements.spinHistoryList) {
+    return;
+  }
+
+  if (spinHistory.length === 0) {
+    elements.spinHistoryList.innerHTML = '<li class="spin-history-empty" id="spinHistoryEmpty">No spins yet. The last five results will appear here.</li>';
+    return;
+  }
+
+  elements.spinHistoryList.innerHTML = spinHistory
+    .map((entry) => {
+      const symbolsMarkup = entry.symbols
+        .map((symbol) => `<span class="spin-history-symbol" title="${symbol.label}"><span aria-hidden="true">${symbol.icon}</span><strong>${symbol.label}</strong></span>`)
+        .join('');
+
+      const progressLabel = entry.progressDelta > 0 ? `-${entry.progressDelta} progress` : entry.progressDelta < 0 ? `+${Math.abs(entry.progressDelta)} progress` : 'steady';
+
+      return `
+        <li class="spin-history-item ${entry.resultKind}">
+          <div class="spin-history-meta">
+            <strong>Spin ${entry.spinNumber}</strong>
+            <span>${entry.resultLabel}</span>
+            <span>${entry.payout > 0 ? `+${entry.payout} tokens` : 'No payout'}</span>
+          </div>
+          <div class="spin-history-symbols">${symbolsMarkup}</div>
+          <div class="spin-history-meta">
+            <span>Vault ${entry.progressAfter}</span>
+            <span>${progressLabel}</span>
+          </div>
+        </li>
+      `;
+    })
+    .join('');
+}
+
+/**
+ * Build a short label for the history trail.
+ *
+ * @param {import('./game-logic.js').SpinResolution} resolution
+ * @returns {string}
+ */
+function buildSpinHistoryLabel(resolution) {
+  if (resolution.outcome.matchCount >= 5) {
+    return 'Five of a kind';
+  }
+
+  if (resolution.outcome.matchCount >= 3) {
+    return 'Three of a kind';
+  }
+
+  if (resolution.outcome.payout > 0) {
+    return 'Small win';
+  }
+
+  if (resolution.progressLost > 0) {
+    return 'Progress loss';
+  }
+
+  return 'Miss';
+}
+
+/**
  * Show the temporary result overlay and auto-dismiss it.
  *
- * @param {*} elements
- * @param {*} state
+ * @param {AppElements} elements
+ * @param {{ kind: string, kicker: string, value: string, caption: string }} state
  * @returns {void}
  */
 function showResultOverlay(elements, state) {
@@ -902,7 +478,7 @@ function applyTheme(themeName, elements, options = {}) {
   });
 
   syncReelSymbolsToTheme(elements, safeTheme.symbols);
-  renderGameState(gameState, elements);
+  renderGameState(elements);
 
   if (options.playAudio) {
     audioEngine.unlock();
@@ -932,7 +508,7 @@ function applyGameMode(modeName, elements, options = {}) {
     audioEngine.playThemeChange(activeTheme.key);
   }
 
-  renderGameState(gameState, elements);
+  renderGameState(elements);
 }
 
 /**
@@ -1572,34 +1148,57 @@ function createAudioEngine() {
   }
 
   /**
- * Helper for play outcome.
+ * Handle the outcome soundscape after the reels stop.
+ *
+ * Big wins get a brighter, longer fanfare so the player feels the difference
+ * between a normal hit, a triple, and a five-symbol jackpot.
  *
  * @param {*} resolution
  * @returns {void}
  */
   function playOutcome(resolution, nextThemeKey = themeKey) {
     const profile = getProfile(nextThemeKey);
+    const matchCount = resolution.outcome.matchCount || 0;
 
     if (resolution.bonusAwarded > 0) {
-      playScale(profile, [0, 4, 7, 12, 16], 0.14, 0.055, 0.11);
+      playScale(profile, [0, 4, 7, 12, 16, 19], 0.14, 0.06, 0.09);
       playTone({
-        frequency: semitoneToFrequency(profile.baseFrequency, 16),
+        frequency: semitoneToFrequency(profile.baseFrequency, 19),
         waveType: 'sine',
-        duration: 0.24,
-        gain: 0.04,
+        duration: 0.28,
+        gain: 0.045,
         delay: 0.16,
       });
       return;
     }
 
-    if (resolution.outcome.payout > 0) {
-      playScale(profile, [0, 5, 9, 12, 14], 0.14, 0.05, 0.1);
+    if (resolution.outcome.payout > 0 && matchCount >= 5) {
+      playScale(profile, [0, 7, 12, 16, 19, 24], 0.12, 0.06, 0.08);
+      playTone({
+        frequency: semitoneToFrequency(profile.baseFrequency, 28),
+        waveType: 'triangle',
+        duration: 0.28,
+        gain: 0.04,
+        delay: 0.14,
+      });
+      playTone({
+        frequency: semitoneToFrequency(profile.baseFrequency, 24),
+        waveType: 'sine',
+        duration: 0.22,
+        gain: 0.028,
+        delay: 0.2,
+      });
+      return;
+    }
+
+    if (resolution.outcome.payout > 0 && matchCount >= 3) {
+      playScale(profile, [0, 4, 7, 12, 16], 0.13, 0.055, 0.09);
       playTone({
         frequency: semitoneToFrequency(profile.baseFrequency, 19),
         waveType: 'triangle',
-        duration: 0.18,
+        duration: 0.2,
         gain: 0.034,
-        delay: 0.18,
+        delay: 0.16,
       });
       return;
     }
@@ -1679,3 +1278,383 @@ function getRequiredTemplate(selector) {
 
 
 
+
+/**
+ * Keep the current scoreboard, bonus meter, reels, and history log in sync
+ * with the latest game state.
+ *
+ * @param {AppElements} elements
+ * @returns {void}
+ */
+function renderGameState(elements) {
+  const config = getActiveGameConfig();
+  const bonusRatio = config.bonusThreshold > 0 ? gameState.bonusProgress / config.bonusThreshold : 0;
+  const bonusPercent = Math.max(0, Math.min(100, bonusRatio * 100));
+
+  elements.walletCount.textContent = String(gameState.wallet);
+  elements.wonCount.textContent = String(gameState.won);
+  elements.spentCount.textContent = String(gameState.spent);
+  elements.streakCount.textContent = `${gameState.streak} win${gameState.streak === 1 ? '' : 's'}`;
+  elements.lastPayout.textContent = `${gameState.lastPayout} tokens`;
+  elements.spinCount.textContent = String(gameState.spins);
+  elements.moodText.textContent = getMoodText(gameState, config);
+  elements.statusLine.textContent = gameState.feedbackText;
+  elements.feedbackPill.textContent = gameState.feedbackText;
+  elements.feedbackPill.className = `feedback-pill ${gameState.feedbackKind}`;
+
+  elements.bonusText.textContent = `${gameState.bonusProgress} / ${config.bonusThreshold} spins`;
+  elements.bonusAlert.textContent = gameState.bonusProgress >= config.bonusThreshold - 1
+    ? `Next spin unlocks the vault for +${config.bonusReward} tokens.`
+    : `${config.bonusThreshold - gameState.bonusProgress} spins until the vault opens.`;
+  elements.bonusFill.style.width = `${bonusPercent}%`;
+  elements.bonusCluster.classList.toggle('warm', bonusPercent >= 25 && bonusPercent < 65);
+  elements.bonusCluster.classList.toggle('heated', bonusPercent >= 65 && bonusPercent < 100);
+  elements.bonusCluster.classList.toggle('imminent', bonusPercent >= 100 || gameState.bonusProgress >= config.bonusThreshold - 1);
+
+  elements.spinButton.disabled = gameState.isSpinning || !canAffordSpin(gameState.wallet, config);
+  elements.cashOutButton.disabled = gameState.isSpinning || gameState.wallet <= 0;
+
+  renderSpinHistory(elements);
+}
+
+/**
+ * Resolve a complete spin, animate the reels one by one, and update the game
+ * state once the machine has finished rolling.
+ *
+ * @param {AppElements} elements
+ * @returns {Promise<void>}
+ */
+async function handleSpinClick(elements) {
+  const config = getActiveGameConfig();
+
+  if (gameState.isSpinning) {
+    return;
+  }
+
+  if (!canAffordSpin(gameState.wallet, config)) {
+    setStatusMessage(elements, 'Not enough tokens to spin yet.');
+    queueToast(elements, 'The machine wants a few more tokens first.');
+    triggerVibration(60);
+    renderGameState(elements);
+    return;
+  }
+
+  closeHelpModal(elements);
+  hideResultOverlay(elements);
+
+  gameState = {
+    ...startSpin(gameState, config),
+    isSpinning: true,
+    feedbackKind: 'spinning',
+    feedbackText: 'Reels are rolling...',
+  };
+  renderGameState(elements);
+
+  audioEngine.unlock();
+  audioEngine.playSpinStart(activeTheme.key);
+  triggerVibration([25, 20, 35]);
+
+  const reelSymbols = await spinAllReels(elements, config);
+  const resolution = finishSpin(gameState, reelSymbols, config);
+
+  gameState = {
+    ...resolution.nextState,
+    feedbackKind: resolution.bonusAwarded > 0 ? 'bonus' : resolution.outcome.payout > 0 ? 'win' : 'loss',
+    feedbackText: resolution.statusMessage,
+  };
+
+  recordSpinHistory(reelSymbols, resolution);
+  renderGameState(elements);
+  setStatusMessage(elements, resolution.statusMessage);
+  showResultOverlay(elements, getResultStateForSpin(resolution, config));
+  audioEngine.playOutcome(resolution, activeTheme.key);
+
+  if (resolution.outcome.matchCount >= 5) {
+    flashMachinePanel(elements.machinePanel, 'mega-win-flash');
+    queueToast(elements, 'Five of a kind. That is a proper cabinet hit.');
+    triggerVibration([90, 45, 90]);
+    return;
+  }
+
+  if (resolution.outcome.matchCount >= 3) {
+    flashMachinePanel(elements.machinePanel, 'win-flash');
+    queueToast(elements, 'Three of a kind. Nice pull.');
+    triggerVibration([50, 25, 50]);
+    return;
+  }
+
+  if (resolution.outcome.payout > 0) {
+    flashMachinePanel(elements.machinePanel, 'win-flash');
+    queueToast(elements, 'The cabinet paid out.');
+    triggerVibration(40);
+    return;
+  }
+
+  if (resolution.progressLost > 0 || resolution.outcome.resetsProgress) {
+    flashMachinePanel(elements.machinePanel, 'loss-flash');
+    queueToast(elements, 'The vault slipped backward.');
+  }
+}
+
+/**
+ * Trade part of the wallet for a slide deck and apply the same state refresh
+ * path as the spin button so the UI stays in sync.
+ *
+ * @param {AppElements} elements
+ * @returns {void}
+ */
+function handleCashOutClick(elements) {
+  const config = getActiveGameConfig();
+
+  if (gameState.isSpinning) {
+    return;
+  }
+
+  closeHelpModal(elements);
+  hideResultOverlay(elements);
+
+  const resolution = resolveCashOut(gameState, config);
+  gameState = {
+    ...resolution.nextState,
+    feedbackKind: resolution.tokensRemoved > 0 ? 'bonus' : 'ready',
+    feedbackText: resolution.statusMessage,
+  };
+
+  setStatusMessage(elements, resolution.statusMessage);
+  queueToast(elements, resolution.statusMessage);
+  audioEngine.playCashOut(activeTheme.key, resolution.tokensRemoved);
+
+  if (resolution.tokensRemoved > 0) {
+    triggerVibration([18, 18, 18]);
+  }
+
+  renderGameState(elements);
+}
+
+/**
+ * Animate all visible reels and return the final symbol set for the spin.
+ * The reels stop left-to-right so the cabinet feels like a physical drum.
+ *
+ * @param {AppElements} elements
+ * @param {import('./game-logic.js').GameConfig} config
+ * @returns {Promise<string[]>}
+ */
+async function spinAllReels(elements, config) {
+  const finalSymbols = Array.from({ length: config.reelCount }, () => pickRandomSymbol(elements.symbolPool).key);
+
+  for (let index = 0; index < config.reelCount; index += 1) {
+    const reelWindow = elements.reelWindows[index];
+    const reelElement = elements.reelSymbols[index];
+    const reelSymbol = elements.symbolPool.find((symbol) => symbol.key === finalSymbols[index]) || elements.symbolPool[0];
+    const duration = activeGameMode.reelSpinDurations[index] || activeGameMode.reelSpinDurations[activeGameMode.reelSpinDurations.length - 1];
+
+    await animateReelSymbol(reelWindow, reelElement, reelSymbol, index, elements.symbolPool, duration);
+    audioEngine.playReelStop(activeTheme.key, index);
+  }
+
+  return finalSymbols;
+}
+
+/**
+ * Scroll a single reel downward with an easing curve, then land on the final
+ * symbol once the reel has slowed to a stop.
+ *
+ * @param {HTMLElement} reelWindow
+ * @param {HTMLElement} reelElement
+ * @param {{ key: string, label: string, icon: string }} finalSymbol
+ * @param {number} reelIndex
+ * @param {Array<{ key: string, label: string, icon: string }>} symbolPool
+ * @param {number} durationMs
+ * @returns {Promise<void>}
+ */
+function animateReelSymbol(reelWindow, reelElement, finalSymbol, reelIndex, symbolPool, durationMs) {
+  const startTime = performance.now();
+  reelWindow.classList.add('is-spinning');
+  reelElement.classList.add('spinning');
+
+  return new Promise((resolve) => {
+    const advanceFrame = (timestamp) => {
+      const elapsed = timestamp - startTime;
+      const progress = Math.min(1, elapsed / durationMs);
+
+      if (progress >= 1) {
+        renderReelSymbol(reelElement, finalSymbol);
+        reelWindow.classList.remove('is-spinning');
+        reelElement.classList.remove('spinning');
+        resolve();
+        return;
+      }
+
+      renderReelSymbol(reelElement, pickRandomSymbol(symbolPool));
+
+      const easedProgress = progress * progress;
+      const nextDelay = Math.round(REEL_START_INTERVAL_MS + (REEL_END_INTERVAL_MS - REEL_START_INTERVAL_MS) * easedProgress);
+      window.setTimeout(() => {
+        requestAnimationFrame(advanceFrame);
+      }, nextDelay);
+    };
+
+    renderReelSymbol(reelElement, pickRandomSymbol(symbolPool));
+    window.setTimeout(() => {
+      requestAnimationFrame(advanceFrame);
+    }, 0);
+  });
+}
+
+/**
+ * Create and cache the DOM references that the cabinet needs to render and
+ * respond to player input.
+ *
+ * @returns {AppElements}
+ */
+function buildAppElements() {
+  const reelWindows = Array.from(document.querySelectorAll('.reel-window'));
+  const reelSymbols = Array.from(document.querySelectorAll('.reel-symbol'));
+
+  return {
+    machinePanel: getRequiredHtmlElement('.machine-panel'),
+    machineTitle: getRequiredHtmlElement('#machineTitle'),
+    machineEyebrow: getRequiredHtmlElement('#machineEyebrow'),
+    themeFlavor: getRequiredHtmlElement('#themeFlavor'),
+    guideText: getRequiredHtmlElement('#guideText'),
+    vaultPrize: getRequiredHtmlElement('#vaultPrize'),
+    jackpotRule: getRequiredHtmlElement('#jackpotRule'),
+    bonusRule: getRequiredHtmlElement('#bonusRule'),
+    setbackRule: getRequiredHtmlElement('#setbackRule'),
+    burstRule: getRequiredHtmlElement('#burstRule'),
+    resetRule: getRequiredHtmlElement('#resetRule'),
+    themeButtons: getThemeButtons(),
+    modeButtons: getModeButtons(),
+    reels: getRequiredHtmlElement('.reels'),
+    reelWindows,
+    reelSymbols,
+    feedbackPill: getRequiredHtmlElement('#feedbackPill'),
+    bonusCluster: getRequiredHtmlElement('#bonusCluster'),
+    bonusText: getRequiredHtmlElement('#bonusText'),
+    bonusAlert: getRequiredHtmlElement('#bonusAlert'),
+    bonusFill: getRequiredHtmlElement('#bonusFill'),
+    spinButton: getRequiredButton('#spinButton'),
+    cashOutButton: getRequiredButton('#cashOutButton'),
+    statusLine: getRequiredHtmlElement('#statusLine'),
+    walletCount: getRequiredHtmlElement('#walletCount'),
+    wonCount: getRequiredHtmlElement('#wonCount'),
+    spentCount: getRequiredHtmlElement('#spentCount'),
+    streakCount: getRequiredHtmlElement('#streakCount'),
+    lastPayout: getRequiredHtmlElement('#lastPayout'),
+    spinCount: getRequiredHtmlElement('#spinCount'),
+    moodText: getRequiredHtmlElement('#moodText'),
+    helpLauncher: getRequiredButton('#helpLauncher'),
+    helpModal: getRequiredHtmlElement('#helpModal'),
+    helpMinimizeButton: getRequiredButton('#helpMinimizeButton'),
+    helpCloseButton: getRequiredButton('#helpCloseButton'),
+    volumeSlider: getRequiredRangeInput('#volumeSlider'),
+    volumeValue: getRequiredHtmlElement('#volumeValue'),
+    spinHistoryList: getRequiredHtmlElement('#spinHistoryList'),
+    toastStack: getRequiredHtmlElement('#toastStack'),
+    toastTemplate: getRequiredTemplate('#toastTemplate'),
+    resultOverlay: getRequiredHtmlElement('#resultOverlay'),
+    resultOverlayCard: getRequiredHtmlElement('#resultOverlayCard'),
+    resultKicker: getRequiredHtmlElement('#resultKicker'),
+    resultValue: getRequiredHtmlElement('#resultValue'),
+    resultCaption: getRequiredHtmlElement('#resultCaption'),
+    symbolPool: [],
+  };
+}
+
+/**
+ * Wire up the cabinet buttons, sliders, and keyboard shortcuts.
+ *
+ * @param {AppElements} elements
+ * @returns {void}
+ */
+function attachEventListeners(elements) {
+  elements.spinButton.addEventListener('click', () => {
+    void handleSpinClick(elements);
+  });
+
+  elements.cashOutButton.addEventListener('click', () => {
+    handleCashOutClick(elements);
+  });
+
+  elements.themeButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      applyTheme(button.dataset.themeOption || AVAILABLE_THEMES[0], elements, { playAudio: true });
+    });
+  });
+
+  elements.modeButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      applyGameMode(button.dataset.modeOption || GAME_MODES.classic.key, elements, { playAudio: true });
+    });
+  });
+
+  elements.volumeSlider.addEventListener('input', () => {
+    const volume = clampVolume(Number(elements.volumeSlider.value) / 100);
+    audioEngine.setVolume(volume);
+    persistVolume(volume);
+    syncVolumeUI(elements, volume);
+  });
+
+  elements.helpLauncher.addEventListener('click', () => {
+    toggleHelpModal(elements);
+  });
+
+  elements.helpCloseButton.addEventListener('click', () => {
+    closeHelpModal(elements);
+  });
+
+  elements.helpMinimizeButton.addEventListener('click', () => {
+    toggleHelpModalMinimized(elements);
+  });
+
+  elements.helpModal.addEventListener('click', (event) => {
+    const target = event.target;
+
+    if (target instanceof HTMLElement && target.dataset.helpClose === 'true') {
+      closeHelpModal(elements);
+    }
+  });
+
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !elements.helpModal.hidden) {
+      closeHelpModal(elements);
+    }
+  });
+}
+
+/**
+ * Put the cabinet into its initial state and restore saved user preferences.
+ *
+ * @returns {void}
+ */
+function initializeApp() {
+  const elements = buildAppElements();
+
+  gameState = createInitialGameState();
+  audioEngine.setVolume(loadStoredVolume());
+  syncVolumeUI(elements, audioEngine.getVolume());
+
+  applyGameMode(loadStoredMode(), elements);
+  applyTheme(loadStoredTheme(), elements);
+
+  attachEventListeners(elements);
+  renderGameState(elements);
+  openHelpModal(elements);
+}
+
+if (typeof document !== 'undefined') {
+  initializeApp();
+}
+
+export {
+  clampVolume,
+  loadStoredMode,
+  loadStoredTheme,
+  loadStoredVolume,
+  getConfiguredThemeGameConfig,
+  getActiveGameConfig,
+  buildSpinHistoryLabel,
+  getResultStateForSpin,
+  renderSpinHistory,
+  recordSpinHistory,
+};

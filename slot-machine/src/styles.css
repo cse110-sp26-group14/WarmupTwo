@@ -472,6 +472,11 @@ h2 {
 
 .reels[data-reel-count='5'] {
   grid-template-columns: repeat(5, minmax(0, 1fr));
+  --reel-symbol-size: clamp(2rem, 4.4vw, 4rem);
+}
+
+.reels[data-reel-count='3'] {
+  --reel-symbol-size: clamp(2.8rem, 7.2vw, 5.2rem);
 }
 
 .reel-window {
@@ -506,8 +511,10 @@ h2 {
   align-items: center;
   justify-content: center;
   width: 100%;
+  height: 100%;
+  min-height: 0;
   font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
-  font-size: clamp(2.6rem, 7vw, 5rem);
+  font-size: var(--reel-symbol-size, clamp(2.6rem, 7vw, 5rem));
   line-height: 1;
   text-align: center;
   will-change: transform, opacity;
@@ -522,7 +529,11 @@ h2 {
 }
 
 .reel-window.is-spinning .symbol-icon {
-  animation: reelSymbolScroll 220ms linear infinite;
+  animation: reelSymbolScroll 180ms linear infinite;
+}
+
+.reels[data-reel-count='5'] .symbol-icon {
+  min-height: 0;
 }
 
 .reel-symbol.spinning {
@@ -568,6 +579,10 @@ h2 {
 .result-overlay-card.bonus,
 .result-overlay-card.jackpot {
   background: linear-gradient(135deg, rgba(255, 240, 196, 0.98), rgba(255, 214, 247, 0.98));
+}
+
+.result-overlay-card.triple {
+  background: linear-gradient(135deg, rgba(233, 255, 215, 0.98), rgba(255, 245, 182, 0.98));
 }
 
 .result-kicker {
@@ -800,6 +815,62 @@ h2 {
   gap: 0.8rem;
 }
 
+.history-panel {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.spin-history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.spin-history-empty,
+.spin-history-item {
+  padding: 0.8rem 0.85rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.spin-history-item {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.spin-history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  color: rgba(255, 247, 233, 0.76);
+  font-size: 0.88rem;
+}
+
+.spin-history-symbols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.spin-history-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.spin-history-symbol strong {
+  font-family: 'Copperplate', 'Rockwell Extra Bold', 'Baskerville', 'Times New Roman', serif;
+}
+
 .stat-card {
   display: grid;
   gap: 0.4rem;
@@ -885,6 +956,10 @@ h2 {
   animation: panelFlash 520ms ease;
 }
 
+.machine-panel.mega-win-flash {
+  animation: megaPanelFlash 760ms ease;
+}
+
 .machine-panel.loss-flash {
   animation: panelDip 420ms ease;
 }
@@ -911,6 +986,13 @@ h2 {
   0% { box-shadow: 0 20px 50px var(--shadow); }
   50% { box-shadow: 0 24px 88px rgba(83, 216, 106, 0.44); }
   100% { box-shadow: 0 20px 50px var(--shadow); }
+}
+
+@keyframes megaPanelFlash {
+  0% { box-shadow: 0 20px 50px var(--shadow); transform: scale(1); }
+  35% { box-shadow: 0 30px 110px rgba(255, 209, 102, 0.56); transform: scale(1.01); }
+  65% { box-shadow: 0 30px 118px rgba(255, 111, 89, 0.4); transform: scale(1.015); }
+  100% { box-shadow: 0 20px 50px var(--shadow); transform: scale(1); }
 }
 
 @keyframes panelDip {
@@ -965,6 +1047,7 @@ h2 {
 @media (max-width: 860px) {
   .reels[data-reel-count='5'] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    --reel-symbol-size: clamp(1.6rem, 8vw, 3rem);
   }
 
   .reels,

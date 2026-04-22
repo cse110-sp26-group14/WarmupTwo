@@ -61,3 +61,30 @@ test('loadStoredVolume clamps oversized stored percentages', () => {
   storage.set('lucky-spin-volume', '250');
   assert.equal(script.loadStoredVolume(), 1);
 });
+
+test('buildSpinHistoryLabel distinguishes the big win tiers', () => {
+  assert.equal(script.buildSpinHistoryLabel({ outcome: { matchCount: 5, payout: 30 }, progressLost: 0 }), 'Five of a kind');
+  assert.equal(script.buildSpinHistoryLabel({ outcome: { matchCount: 3, payout: 18 }, progressLost: 0 }), 'Three of a kind');
+  assert.equal(script.buildSpinHistoryLabel({ outcome: { matchCount: 2, payout: 6 }, progressLost: 0 }), 'Small win');
+  assert.equal(script.buildSpinHistoryLabel({ outcome: { matchCount: 0, payout: 0 }, progressLost: 4 }), 'Progress loss');
+});
+
+test('recordSpinHistory keeps the latest spin at the top of the trail', () => {
+  const historyList = { innerHTML: '' };
+
+  script.recordSpinHistory(['CHERRY', 'DIAMOND', 'LUCKY7'], {
+    nextState: { spins: 1, bonusProgress: 1 },
+    outcome: { matchCount: 3, payout: 18, kind: 'win', resetsProgress: false },
+    bonusAwarded: 0,
+    pityRefillAwarded: 0,
+    totalPayout: 18,
+    progressLost: 0,
+    statusMessage: 'Nice hit',
+  });
+
+  script.renderSpinHistory({ spinHistoryList: historyList });
+
+  assert.match(historyList.innerHTML, /Spin 1/);
+  assert.match(historyList.innerHTML, /Three of a kind/);
+  assert.match(historyList.innerHTML, /Cherry/);
+});

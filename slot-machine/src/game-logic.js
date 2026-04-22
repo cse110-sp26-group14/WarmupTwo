@@ -42,6 +42,8 @@
  * @property {'win' | 'loss'} kind
  * @property {number} progressDelta
  * @property {boolean} resetsProgress
+ * @property {number} matchCount
+ * @property {string} matchedSymbol
  */
 
 /**
@@ -215,6 +217,8 @@ export function evaluateSpinResult(reelSymbols, config = DEFAULT_GAME_CONFIG) {
       kind: 'win',
       progressDelta: 0,
       resetsProgress: false,
+      matchCount,
+      matchedSymbol: String(matchedSymbol),
     };
   }
 
@@ -225,6 +229,8 @@ export function evaluateSpinResult(reelSymbols, config = DEFAULT_GAME_CONFIG) {
       kind: 'loss',
       progressDelta: 0,
       resetsProgress: true,
+      matchCount,
+      matchedSymbol: String(matchedSymbol),
     };
   }
 
@@ -235,6 +241,8 @@ export function evaluateSpinResult(reelSymbols, config = DEFAULT_GAME_CONFIG) {
       kind: 'loss',
       progressDelta: -config.progressDropAmount,
       resetsProgress: false,
+      matchCount,
+      matchedSymbol: String(matchedSymbol),
     };
   }
 
@@ -245,6 +253,8 @@ export function evaluateSpinResult(reelSymbols, config = DEFAULT_GAME_CONFIG) {
       kind: 'loss',
       progressDelta: -config.secondaryProgressDropAmount,
       resetsProgress: false,
+      matchCount,
+      matchedSymbol: String(matchedSymbol),
     };
   }
 
@@ -255,6 +265,8 @@ export function evaluateSpinResult(reelSymbols, config = DEFAULT_GAME_CONFIG) {
       kind: 'win',
       progressDelta: 0,
       resetsProgress: false,
+      matchCount,
+      matchedSymbol: String(matchedSymbol),
     };
   }
 
@@ -265,6 +277,8 @@ export function evaluateSpinResult(reelSymbols, config = DEFAULT_GAME_CONFIG) {
       kind: 'win',
       progressDelta: 0,
       resetsProgress: false,
+      matchCount,
+      matchedSymbol: String(matchedSymbol),
     };
   }
 
@@ -274,6 +288,8 @@ export function evaluateSpinResult(reelSymbols, config = DEFAULT_GAME_CONFIG) {
     kind: 'loss',
     progressDelta: 0,
     resetsProgress: false,
+    matchCount,
+    matchedSymbol: '',
   };
 }
 
