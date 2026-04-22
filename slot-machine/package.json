@@ -1,0 +1,9 @@
+{
+  "name": "token-furnace-3000",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "check:js": "node --check src/game-logic.js && node --check src/script.js"
+  }
+}
