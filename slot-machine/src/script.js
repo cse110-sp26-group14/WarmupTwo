@@ -446,7 +446,10 @@ function spinAllReels(elements) {
 }
 
 function animateReelSymbol(reelElement, durationMs, symbolPool, reelIndex) {
+  const reelWindow = reelElement.closest('.reel-window');
+
   reelElement.classList.add('spinning');
+  reelWindow?.classList.add('is-spinning');
 
   const timerId = window.setInterval(() => {
     renderReelSymbol(reelElement, pickRandomSymbol(symbolPool));
@@ -456,6 +459,7 @@ function animateReelSymbol(reelElement, durationMs, symbolPool, reelIndex) {
     window.setTimeout(() => {
       window.clearInterval(timerId);
       reelElement.classList.remove('spinning');
+      reelWindow?.classList.remove('is-spinning');
       const finalSymbol = pickRandomSymbol(symbolPool);
       renderReelSymbol(reelElement, finalSymbol);
       audioEngine.playReelStop(activeTheme.key, reelIndex);
@@ -716,6 +720,7 @@ function applyGameMode(modeName, elements, options = {}) {
 
   activeGameMode = safeMode;
   persistMode(safeMode.key);
+  document.body.dataset.mode = safeMode.key;
   syncGameModeUI(elements, safeMode);
 
   if (options.playAudio) {
@@ -759,6 +764,7 @@ function syncReelSymbolsToTheme(elements, symbols) {
 
 function syncGameModeUI(elements, mode) {
   elements.reels.dataset.reelCount = String(mode.reelCount);
+  elements.reels.dataset.mode = mode.key;
   elements.reels.style.removeProperty('grid-template-columns');
 
   elements.reelWindows.forEach((windowElement, index) => {
