@@ -2,6 +2,22 @@ Research Overview Document
 Team 14  
 AI Model: Codex 4.5 High
 
+## **Team Roster**
+
+| Name      | Responsibilities |
+|-----------|------------------|
+| Yu        | Research; Persona & User Stories (2) |
+| Jacky     | Research; Persona & User Stories (2) |
+| Owen      | Research; Persona & User Stories (2); Research Management |
+| Christian | Research; Persona & User Stories (2) |
+| Allison   | Research; Persona & User Stories (2) |
+| Adithya   | Research; Persona & User Stories (2) |
+| Rena      | Research; Persona & User Stories (2) |
+| Kaitlyn   | Research; Persona & User Stories (2) |
+| Alex      | Research; Persona & User Stories (2) |
+| Binteng   | Research; Persona & User Stories (2) |
+| Benjamin  | N/A |
+
 ## **Summary of Research**
 
 During our research phase, we focused on identifying a target audience and understanding what features would create a more engaging and sustainable slot machine experience. We chose to prioritize casual players, users seeking relaxation, utilitarian players, and social building groups. These users are generally not looking for high-risk gambling mechanics, but instead prefer accessible, low-pressure, and enjoyable gameplay experiences. Our research highlights the importance of creating a low-risk, visually engaging, progression-driven, and socially interactive experience tailored to casual and relaxed players, rather than focusing on traditional high-risk gambling dynamics.
