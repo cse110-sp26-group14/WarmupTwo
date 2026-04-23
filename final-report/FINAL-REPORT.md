@@ -16,13 +16,31 @@ Along with the raw research of the slot machines and the users themselves, each 
 - User Stories: Many user stories vary between all members of Team 14, but generally stay under the trend of describing the kind of player that is making this story, explaining what function they want out of their ideal slot machine, and explaining why they want this specific feature. As an example, Little Timmy, a 5th grader, may be playing behind their parents back to attain more money to afford his dream console. 
 
 ## AI-Plan & Document Prompts
+The project followed an evolutionary trajectory, shifting from a thematic "AI Satire" parody to a technically robust game engine. The prompting strategy transitioned from high-level "vibe" descriptors to strict architectural hardening and complex state management.
 
+* Initial Directives (Logs 1–4): Prompts established the core "Token Furnace" identity. Focus was on basic vanilla web tech and establishing a "casual-friendly" loop with "comeback tokens" (pity system).
+* Structural Refinement (Logs 5–9): Strategy shifted toward professional engineering standards. Prompts directed a pivot to modular JS, JSDoc annotations, and unit testing. The plan introduced "content-driven" logic, enabling dynamic theme swapping.
+* Mechanic Complexity (Logs 10–15): Strategy expanded to non-linear progression. Prompts required the implementation of the "Jackpot Climb," "Vault Resets," and the high-stakes "Big 5-Reel" mode.
+* Quality Assurance (Logs 16–20): Final prompts targeted high-fidelity UX and stability. Directives included Web Audio motifs, easing-based spin animations, and cross-platform CSS fixes to ensure mobile responsiveness.
 
 ## Runs
+The development lifecycle consisted of 20 distinct logs, representing a systematic increase in feature density, visual polish, and code maturity.
 
+* Logs 1–5 (Foundations & Logic): Established the "Core Loop." Integrated the first bonus systems, spin counters, and a stackable toast notification system for real-time feedback.
+* Logs 6–10 (Atmospheric Integration): Implemented a comprehensive Audio Engine using the Web Audio API. Transitioned from silent feedback to theme-specific ambient music and reactive sound motifs (e.g., Riviera, Oasis).
+* Logs 11–15 (Mode Expansion): Successfully introduced the "Big 5-Reel" variation. This required a "Logical Shift" in payout math and the addition of visual "Result Bursts" to handle increased screen complexity.
+* Logs 16–20 (Hardening & Polish): Focused on the "Net Effect" of stability. Fixed symbol clipping in 5-reel layouts, centered icons for Windows/Mac parity, and implemented global `try/catch` handlers for runtime reliability.
 
 ## Final Output
+The final product is a modular "Lucky Spin Casino" application that balances satirical humor with high-fidelity software engineering.
 
+* Modular Game Engine: Features a flexible architecture supporting dynamic "Content Packs." The system swaps reel symbols, background styles, and CSS variables without breaking core logic.
+* Multi-Mode Gameplay: Includes a Classic 3-Reel mode and a "Big 5-Reel" mode. The engine scales payout requirements and jackpot math automatically based on the active selection.
+* Advanced Progression: The "Jackpot Climb" provides a central engagement hook, featuring risk/reward mechanics where specific symbols can reset progress or trigger massive +150 token payouts.
+* UX Fidelity: Includes a persistent settings panel (volume/theme), a scrollable "Recent Spins" history log, and a stacked toast system. 
+* Technical Verification: The final build maintains 100% pass rates for `npm run check:js` and `npm test`. All HTML/CSS validation errors were resolved, and "Hand-Edits" were performed to fix minor visual clipping in the 5-reel UI.
+  
+The process demonstrated that while AI excels at rapid boilerplate generation, the "Hand-Edits" noted in later logs—specifically regarding symbol pressure and reel centering—were critical for professional polish. Throught this warm up experiment, we were able to successfully transition from a simple joke into a stable, high-fidelity game through 20 iterations of precise, technical prompting.
 
 ## Final Findings
 Our main takeaways from this warm-up includes: 
