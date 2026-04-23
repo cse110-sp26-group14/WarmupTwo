@@ -38,11 +38,11 @@ During our research phase, we focused on identifying a target audience and under
 ---
 
 ## User Stories
-* **Teacher:** I want to reward student groups with slot points so class is more exciting.
-* **Casual Senior:** I want flashy, clear feedback on wins and losses so I can track my chances.
-* **Socialite:** I want accessible mobile excitement to share with friends during hangouts.
-* **Student:** I want daily rewards and bonuses to maintain my sense of progress.
-* **Subsidized User:** I want to turn free credits into personal earnings to reduce "spender's guilt."
+* As a foreign English teacher, I want to split students into groups and let them earn extra points from the slot machine, so that the class feels more active and exciting.
+* As an older gentle-person who’s just looking to play, I want my plays be fast, flashy and clearly communicated to me so that I know for with absolute certainty when I win, when I lost and how close I was to winning to track my chances and see if I should keep going big or change up how I play in the game. 
+* As an outgoing person who loves to invite my friends over to have fun, I want to now also get the thrilling feeling of excitement in other ways that are easily accessible, which I can now get straight from my phone.
+* As a student, I want to earn daily rewards and bonuses, so that I feel motivated to keep playing and enjoy a sense of progress over time.
+* As a person who receives a lot of free money, I want to use it to earn my own money, so that I feel less guilty about it not being my own money.
 
 ## **Domain/User Insights**
 
