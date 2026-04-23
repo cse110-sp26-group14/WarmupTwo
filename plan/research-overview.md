@@ -2,47 +2,9 @@ Research Overview Document
 Team 14  
 AI Model: Codex 4.5 High
 
-## **Team Roster**
-
-| Name      | Responsibilities |
-|-----------|------------------|
-| Yu        | Research; Persona & User Stories (2) |
-| Jacky     | Research; Persona & User Stories (2) |
-| Owen      | Research; Persona & User Stories (2); Research Management |
-| Christian | Research; Persona & User Stories (2) |
-| Allison   | Research; Persona & User Stories (2) |
-| Adithya   | Research; Persona & User Stories (2) |
-| Rena      | Research; Persona & User Stories (2) |
-| Kaitlyn   | Research; Persona & User Stories (2) |
-| Alex      | Research; Persona & User Stories (2) |
-| Binteng   | Research; Persona & User Stories (2) |
-| Benjamin  | N/A |
-
 ## **Summary of Research**
 
 During our research phase, we focused on identifying a target audience and understanding what features would create a more engaging and sustainable slot machine experience. We chose to prioritize casual players, users seeking relaxation, utilitarian players, and social building groups. These users are generally not looking for high-risk gambling mechanics, but instead prefer accessible, low-pressure, and enjoyable gameplay experiences. Our research highlights the importance of creating a low-risk, visually engaging, progression-driven, and socially interactive experience tailored to casual and relaxed players, rather than focusing on traditional high-risk gambling dynamics.
-
-## User Personas
-### Timmy (Casual Player)
-* **Age:** 20 (Fresh Graduate/Employed)
-* **Goals:** Quick gameplay, fun casino nights, and simple rules.
-* **Frustrations:** Overly complex interfaces and feature bloat.
-* **Behavior:** Plays short sessions; demands fast feedback and simple controls.
-
-### Larry (The Educator)
-* **Age:** 55 (English Teacher in China)
-* **Goals:** Uses the slot machine for classroom points and team-building activities.
-* **Wants:** Clear rules and easy student participation.
-* **Constraints:** No real money or gambling; must comply with local regulations.
-
----
-
-## User Stories
-* As a foreign English teacher, I want to split students into groups and let them earn extra points from the slot machine, so that the class feels more active and exciting.
-* As an older gentle-person who’s just looking to play, I want my plays be fast, flashy and clearly communicated to me so that I know for with absolute certainty when I win, when I lost and how close I was to winning to track my chances and see if I should keep going big or change up how I play in the game. 
-* As an outgoing person who loves to invite my friends over to have fun, I want to now also get the thrilling feeling of excitement in other ways that are easily accessible, which I can now get straight from my phone.
-* As a student, I want to earn daily rewards and bonuses, so that I feel motivated to keep playing and enjoy a sense of progress over time.
-* As a person who receives a lot of free money, I want to use it to earn my own money, so that I feel less guilty about it not being my own money.
 
 ## **Domain/User Insights**
 
@@ -124,3 +86,62 @@ What do these groups want from the Slot Machine?
   * Generated Code should be safe and prevent code breaking, information leaks data-mining if able to.   
 * The entire output should also be split among multiple files, with each file handling specific grouped aspects of the game in a clearly indicated manner.   
   * Example: Some classes/files can exist and be referenced in other files (such as helper functions or Game Manager files). 
+
+## 
+
+## **User Persona(2)**
+
+### **Persona 1: Casual Player**
+
+Name: Timmy  
+Age: 20  
+Background: Freshly graduated college student that is employed  
+Goals:
+
+- Have a fun night at the casino  
+- Quick and fun gameplay  
+- Easy to understand rules 
+
+Frustrations:
+
+- Complicated interfaces  
+- Too many features at once
+
+Behavior:
+
+- Plays in short sessions  
+- Prefers simple controls and fast feedback
+
+### **Persona 2: Casual Player**
+
+Name: Larry  
+Age: 55  
+Details:   
+Larry is a foreign English teacher at a Chinese High School. He teaches students English and likes to organize students into small groups. He loves to use games to make class more active, and wants students to have fun in class.   
+Wants and needs:  
+He wants to use this slot machine to give extra points to winning teams, and likes simple games with clear rules. He wants all students to join easily and uses the slot machine as a class activity. 
+
+Doesn’t want nor needs:  
+However, since the rules of China, he will use this slot machine to focus on teamwork, not gambling. So this slot machine must be just about fun but not for real money.
+
+## **User Story(5)**
+
+1. As a foreign English teacher, I want to split students into groups and let them earn extra points from the slot machine, so that the class feels more active and exciting.  
+2. As an older gentle-person who’s just looking to play, I want my plays be fast, flashy and clearly communicated to me so that I know for with absolute certainty when I win, when I lost and how close I was to winning to track my chances and see if I should keep going big or change up how I play in the game.   
+3. As an outgoing person who loves to invite my friends over to have fun, I want to now also get the thrilling feeling of excitement in other ways that are easily accessible, which I can now get straight from my phone.  
+4. As a student, I want to earn daily rewards and bonuses, so that I feel motivated to keep playing and enjoy a sense of progress over time.  
+5. As a person who receives a lot of free money, I want to use it to earn my own money, so that I feel less guilty about it not being my own money.
+
+## **Team Roster**
+
+Yu: Research on Slot Machine, Writer for Persona and User Stories (2)  
+Jacky: Research on Slot Machine, Writer for Persona and User Stories (2)  
+Owen: Research on Slot Machine, Writer for Persona and User Stories (2), Management of Research  
+Christian: Research on Slot Machine, Writer for Persona and User Stories (2)  
+Allison: Research on Slot Machine, Writer for Persona and User Stories (2)  
+Adithya: Research on Slot Machine, Writer for Persona and User Stories (2)  
+Rena: Research on Slot Machine, Writer for Persona and User Stories (2)  
+Kaitlyn: Research on Slot Machine, Writer for Persona and User Stories (2)  
+Alex: Research on Slot Machine, Writer for Persona and User Stories (2)  
+Binteng: Research on Slot Machine, Writer for Persona and User Stories (2)  
+Benjamin: N/A 
