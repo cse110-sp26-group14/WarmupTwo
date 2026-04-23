@@ -17,8 +17,17 @@ Along with the raw research of the slot machines and the users themselves, each 
 
 ## AI-Plan & Document Prompts
 
+
 ## Runs
+
 
 ## Final Output
 
+
 ## Final Findings
+Our main takeaways from this warm-up includes: 
+- Research is Key: A key factor to forming our prompts to be used to create our slot machine was the use of research. Ensuring that we as a team can understand the specific features, aspects and information that make a slot machine a *slot machine*, as well as taking into account what kind of users would we want to attract and how to keep them engaged in that activity were quintessential to completing this warm-up. 
+- Precision is Vital: In order for specifc features and changes to be made correctly, our prompts often needed to directly state what that issue is to get the ai to actually focus on the subject we are referring to. In the case that AI is used in future projects, this aspect should be taken into account to ensure that our code can stay as clean as it can prior to any specific debugging, testing and quality assurance. 
+- Context: We found that often, whatever an AI creates, instead of rebuilding itself to fit the guidlines our prompts asked for, instead it would try to reformat already exisitng code to fit the specifications we asked for, even if it lead to a more inaccurate or broken output. Taking this into account is important and bolsters the need for specification in ai prompt usage to generate code. 
+- The Human Factor is Essential: Often we as developers don't take into account the human factor of software development. It is important that we both need to take actions and specify features that directly benefit our target audiance to ensure active engagement and usage is enacted, and that we take into account our own judgement of how a specifc code segment looks or how the output feels when we test it ourselves to ensure that our generated output could potentially be adequate. 
+- Clean Code: We found that AI often regurgitates code that ensures that the desired output is made, but does not account for if the code itself is clean. Often, we as a team needed to be as precise as possible as to ensure that the ai generates a code that can adequately fall under the clean code category. To ensure that our outputs or future creations do fit under this important category, it is important for us as developers to examine the code ourselves to come to a clear conclusion rather than fully trusting that a generated output will always work on all circumstances. 
