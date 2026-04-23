@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lucky Spin Casino</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <noscript class="noscript-banner">Lucky Spin Casino needs JavaScript enabled to spin the reels.</noscript>
+
+  <header class="top-banner">
+    <p class="eyebrow">Theme Slot Cabinet</p>
+    <h1>Lucky Spin Casino</h1>
+    <p class="intro">
+      Pick a setting, pull the machine, and chase the vault. The climb is longer now,
+      the payout is fatter, and a few unlucky combinations can smash your progress.
+    </p>
+  </header>
+
+  <main class="app-shell">
+    <section class="machine-panel" aria-labelledby="machineTitle">
+      <div class="cabinet-top">
+        <div>
+          <p class="mini-label" id="machineEyebrow">Festival lights</p>
+          <h2 id="machineTitle">Lantern Festival Spinner</h2>
+        </div>
+
+        <div class="cabinet-prizes">
+          <article class="prize-chip">
+            <span>Spin Cost</span>
+            <strong>3 tokens</strong>
+          </article>
+          <article class="prize-chip">
+            <span>Vault Prize</span>
+            <strong id="vaultPrize">150 tokens</strong>
+          </article>
+        </div>
+      </div>
+
+      <div class="cabinet-grid">
+        <aside class="cabinet-side left-rail">
+          <button class="help-launcher" id="helpLauncher" type="button" aria-controls="helpModal" aria-expanded="false">
+            <span class="help-launcher-icon" aria-hidden="true">&#10067;</span>
+            <span class="help-launcher-copy">
+              <span class="mini-label">Guide</span>
+              <strong>How to Play + Mechanics</strong>
+            </span>
+          </button>
+
+          <section class="side-card theme-picker" aria-label="Theme selector">
+            <p class="mini-label">Pick a setting</p>
+            <div class="theme-options">
+              <button class="theme-chip" data-theme-option="festival" type="button">Festival Lights</button>
+              <button class="theme-chip" data-theme-option="riviera" type="button">Riviera Table</button>
+              <button class="theme-chip" data-theme-option="oasis" type="button">Oasis Route</button>
+            </div>
+            <p class="theme-flavor" id="themeFlavor">
+              Lanterns, koi, drums, and a lucky-gate jackpot.
+            </p>
+          </section>
+
+          <section class="side-card settings-panel" aria-label="Settings">
+            <p class="mini-label">Settings bar</p>
+            <label class="volume-control" for="volumeSlider">
+              <span>
+                <strong>Volume</strong>
+                <small>Keep the cabinet relaxed or lively.</small>
+              </span>
+              <span class="volume-readout" id="volumeValue">35%</span>
+            </label>
+            <input id="volumeSlider" class="volume-slider" type="range" min="0" max="100" step="1" value="35" aria-label="Game volume">
+          </section>
+
+          <section class="side-card mode-panel" aria-label="Game mode">
+            <p class="mini-label">Game mode</p>
+            <div class="mode-options">
+              <button class="mode-chip is-active" data-mode-option="classic" type="button">Classic 3-Reel</button>
+              <button class="mode-chip" data-mode-option="bigFive" type="button">Big 5-Reel</button>
+            </div>
+            <p class="mode-flavor" id="modeFlavor">Classic 3-reel play keeps the cabinet quick and compact.</p>
+          </section>
+        </aside>
+
+        <div class="machine-core">
+          <div class="feedback-row">
+            <div class="feedback-pill ready" id="feedbackPill" aria-live="polite">Ready to spin</div>
+
+            <div class="bonus-cluster" id="bonusCluster" aria-live="polite">
+              <div class="bonus-copy">
+                <span class="bonus-label">Vault climb</span>
+                <strong id="bonusText">0 / 24 spins</strong>
+              </div>
+              <p class="bonus-alert" id="bonusAlert">24 spins until the vault opens.</p>
+              <div class="bonus-track" aria-hidden="true">
+                <div class="bonus-fill" id="bonusFill"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="reel-stage">
+            <div class="reels" data-reel-count="3" aria-live="polite">
+              <div class="reel-window"><span class="reel-symbol" id="reel0"></span></div>
+              <div class="reel-window"><span class="reel-symbol" id="reel1"></span></div>
+              <div class="reel-window"><span class="reel-symbol" id="reel2"></span></div>
+              <div class="reel-window is-hidden"><span class="reel-symbol" id="reel3"></span></div>
+              <div class="reel-window is-hidden"><span class="reel-symbol" id="reel4"></span></div>
+            </div>
+
+            <div class="result-overlay" id="resultOverlay" aria-live="polite" aria-atomic="true">
+              <div class="result-overlay-card" id="resultOverlayCard">
+                <p class="result-kicker" id="resultKicker"></p>
+                <strong class="result-value" id="resultValue"></strong>
+                <p class="result-caption" id="resultCaption"></p>
+              </div>
+            </div>
+          </div>
+
+          <div class="controls">
+            <button class="spin-button" id="spinButton" type="button">Spin</button>
+            <button class="secondary-button" id="cashOutButton" type="button">Trade Tokens For Slides</button>
+          </div>
+
+          <p class="machine-status" id="statusLine" role="status" aria-live="polite">
+            Machine warmed up. Spin whenever you're ready.
+          </p>
+        </div>
+
+        <aside class="cabinet-side score-panel">
+          <section class="side-card scoreboard" aria-label="Token scoreboard">
+            <article class="stat-card">
+              <span class="stat-label">Wallet</span>
+              <strong class="stat-value" id="walletCount">30</strong>
+              <span class="stat-note">Tokens ready to use</span>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Won</span>
+              <strong class="stat-value" id="wonCount">0</strong>
+              <span class="stat-note">Tokens earned from hits</span>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Spent</span>
+              <strong class="stat-value" id="spentCount">0</strong>
+              <span class="stat-note">Tokens fed back into the machine</span>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Hot streak</span>
+              <strong class="stat-value" id="streakCount">0 wins</strong>
+              <span class="stat-note">Back-to-back wins</span>
+            </article>
+          </section>
+
+          <section class="side-card rules-panel">
+            <h3>Risk Board</h3>
+            <ul>
+              <li id="jackpotRule"><span class="rule-icon" id="jackpotRuleIcon" aria-hidden="true">&#127922;</span><span class="rule-copy">Three LANTERN icons: jackpot +30 tokens</span></li>
+              <li id="bonusRule"><span class="rule-icon" id="bonusRuleIcon" aria-hidden="true">&#128142;</span><span class="rule-copy">Every 24 spins: vault +150 tokens</span></li>
+              <li id="setbackRule"><span class="rule-icon" id="setbackRuleIcon" aria-hidden="true">&#9888;&#65039;</span><span class="rule-copy">Pair of MASK icons: lose 4 progress</span></li>
+              <li id="burstRule"><span class="rule-icon" id="burstRuleIcon" aria-hidden="true">&#128165;</span><span class="rule-copy">Pair of Burst icons: lose 2 progress</span></li>
+              <li id="resetRule"><span class="rule-icon" id="resetRuleIcon" aria-hidden="true">&#128165;</span><span class="rule-copy">Triple MASK icons: reset the vault</span></li>
+            </ul>
+          </section>
+        </aside>
+      </div>
+
+      <section class="cabinet-history history-panel side-card" aria-label="Recent spin history">
+        <p class="mini-label">Recent spins</p>
+        <ol class="spin-history" id="spinHistoryList" aria-live="polite" aria-relevant="additions text">
+          <li class="spin-history-empty" id="spinHistoryEmpty">No spins yet. The last five results will appear here.</li>
+        </ol>
+      </section>
+
+      <div class="cabinet-bottom ticker-grid">
+        <article class="ticker-card">
+          <span class="ticker-label">Last payout</span>
+          <strong id="lastPayout">0 tokens</strong>
+        </article>
+        <article class="ticker-card">
+          <span class="ticker-label">Spins</span>
+          <strong id="spinCount">0</strong>
+        </article>
+        <article class="ticker-card">
+          <span class="ticker-label">Mood</span>
+          <strong id="moodText">Easygoing</strong>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  
+  <div class="help-modal" id="helpModal" hidden>
+    <div class="help-modal-backdrop" data-help-close="true"></div>
+    <section class="help-modal-panel" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
+      <header class="help-modal-header">
+        <div class="help-modal-titlewrap">
+          <span class="help-modal-icon" aria-hidden="true">&#10067;</span>
+          <div>
+            <p class="mini-label">Guide</p>
+            <h3 id="helpModalTitle">How to Play + Mechanics</h3>
+          </div>
+        </div>
+        <div class="help-modal-actions">
+          <button class="help-modal-button" id="helpMinimizeButton" type="button">Minimize</button>
+          <button class="help-modal-button" id="helpCloseButton" type="button">Close</button>
+        </div>
+      </header>
+      <div class="help-modal-body">
+        <section>
+          <p class="mini-label">How to play</p>
+          <p class="guide-text" id="guideText">
+            Pick a theme, spin the machine, and climb the vault meter. It takes 24 spins to cash the big bonus, but some bad combinations can push you backward.
+          </p>
+        </section>
+        <section>
+          <p class="mini-label">Mechanics</p>
+          <p class="guide-text">
+            Trading tokens for slides means the machine converts half of your current wallet into a fake presentation detour, resets your hot streak, and gives you a small comeback refund if your wallet gets too low to keep spinning.
+          </p>
+        </section>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
+
+  <template id="toastTemplate">
+    <div class="toast"></div>
+  </template>
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>
+
+
+
