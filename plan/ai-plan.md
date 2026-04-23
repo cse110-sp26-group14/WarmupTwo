@@ -1,56 +1,86 @@
 # AI Plan
 
-We will use **Codex** as our main AI tool for this project.  
-We chose Codex because it fits our team workflow well for coding, supports iterative prompting, and is convenient for generating, testing, and refining code in small steps. We will keep using the **same harness consistently** during this warm-up unless we decide to change strategy, and if we do, we will explain that change in `ai-use-log.md` together with the reason for it.
+## AI Model
 
-Our team will use AI in **small increments** instead of asking for the whole final project at once. We want a more strategic process, where each stage builds on research, testing, and revision, instead of relying only on luck or one giant prompt. We will use our `research-overview.md`, personas, and user stories to guide later prompts so that the final product better matches user and domain needs.
+**AI Model: Codex 4.5 High**
 
-After each meaningful step, we will test the result and record what happened in `ai-use-log.md`. This includes:
-- the prompt we used
-- what Codex changed
+## Tools and Approach
+
+- Using OpenAI Codex as our main tool.
+- Work in small steps, not one big prompt.
+- Keep the same direction unless we clearly log major changes.
+
+## 3-Step Process
+
+### 1) Build Base Version
+
+- Generate a simple working slot machine with HTML, CSS, and JavaScript.
+- In this step, we focus on getting a playable base first, not perfect visuals.
+- Core features in this stage include:
+  - spin button and basic reel randomization
+  - token gain/loss behavior
+  - clear win/loss result text
+  - basic layout that can be expanded later
+- We also make sure the app can run reliably before adding advanced features.
+- Success condition for this step: the game loop works end-to-end (spin -> result -> token update).
+
+### 2) Improve with Research
+
+- Make it fun, casual, and low-risk.
+- Add visuals, better feedback, and progression.
+- We use our research direction to shape the experience instead of only adding random features.
+- This step focuses on player-facing quality:
+  - clearer UI hierarchy so players know where to look
+  - stronger feedback after each spin (result overlays, status indicators, toasts)
+  - better theme identity (theme-specific symbols, colors, and vibe)
+  - progression pacing (bonus meter / risk-reward adjustments)
+- We iterate this step many times because most usability issues appear only after playtesting.
+- Success condition for this step: game feels understandable, engaging, and visually coherent.
+
+### 3) Refactor and Test
+
+- Clean code and improve structure.
+- Handle edge cases.
+- Add comments and basic tests.
+- After major feature additions, we improve maintainability and stability.
+- This step includes:
+  - separating game logic from UI logic where possible
+  - reducing duplicate code and simplifying function responsibilities
+  - adding comments/JSDoc for main functions
+  - adding or updating tests for key logic (spin results, payout, mode behavior)
+  - validating outputs and fixing breakpoints/interaction bugs
+- We also check edge cases such as invalid states, quick repeated clicks, and mode switching during spin.
+- Success condition for this step: the app is easier to maintain, less error-prone, and ready for final demo/reporting.
+
+## How We Use AI
+
+Our process in each run:
+
+**Prompt -> Test -> Log Results**
+
+For each run, we track:
 - what worked
 - what failed
 - what we learned
-- what we plan to try next
 
-If something does not work, we will first ask Codex to fix it. Only if that fails will we hand-edit the code, and we will write that clearly in the log. Hand-editing will not be our default approach. We will also make sure our own team members are the ones committing changes to the repository.
+## Goal
 
-These three stages are our **starting framework**. Inside each stage, we may use multiple smaller prompts and refinements. If our process changes, we will update this file and continue documenting everything in `ai-use-log.md`.
+Build a fun app while showing a clear, iterative AI workflow.
 
-## Step 1: Build the basic version
-First, we will use the required warm-up prompt to generate the basic version of the project. This step is mainly to get a working starting point that we can improve later through iteration.
+## Prompt Examples
 
-**Prompt:**
+### Start
 
 Create a slot machine app that uses vanilla web technology like HTML, CSS, JavaScript, and platform APIs. The slot machine should make fun of AI, as in you are winning tokens and spending tokens.
 
-## Step 2: Improve the game based on our research
-Next, we will ask Codex to improve the project so it better matches our user and domain research. We want the slot machine to feel more fun, casual-friendly, visually engaging, and progression-based, instead of feeling like a high-risk gambling app. We also want the design and features to reflect the direction of our research overview, personas, and user stories.
-
-In this stage, we may use several smaller follow-up prompts instead of only one prompt. For example, we may separately improve visuals, progression, layout, feedback, or theme clarity.
-
-**Prompt:**
-
-Improve this slot machine app based on these goals: keep it casual-friendly, low-risk, and easy to understand; make it visually engaging with strong colors and clear feedback; keep the slot machine as the center of attention; add a simple progression system or bonus reward after several spins; and keep the AI joke/theme light and funny. Do not break the existing working features.
-
-## Step 3: Fix, clean, test, and make the code easier to maintain
-Finally, we will ask Codex to improve software engineering quality. This stage is not only about making the app work, but also about helping it better meet the project’s software engineering standards. We want cleaner structure, comments, edge-case handling, validation, and tests so the project is easier to understand, maintain, and improve over time.
-
-In this stage, we will focus on:
-- meaningful names
-- smaller functions
-- avoiding duplicate code
-- clearer modular structure
-- error and edge-case handling
-- JSDoc comments with type annotations for main JavaScript functions
-- basic unit tests for the core game logic
-- checking code quality through linting and validation as we go
-
-**Prompt:**
+### Run #3
 
 Review this slot machine app and improve its software engineering quality. Keep working features intact unless necessary. Refactor for meaningful names, smaller functions, less duplicate code, and clearer modular structure. Add JSDoc comments with type annotations for the main JavaScript functions. Help handle simple edge cases and errors. Add or suggest basic unit tests for the core game logic and token system. Also help prepare the code so it can pass linting and validation checks for HTML, CSS, and JavaScript.
 
-## Team process during AI use
-As we move through these stages, we will keep all artifacts in the repository and update the project incrementally. We want our repo history, prompts, code changes, and logs to show how the project developed over time, instead of only showing the final result.
+### Run #10
 
-This is our starting AI plan. If our process changes, we will update this file and continue documenting everything in `ai-use-log.md`.
+Take this application and make the following changes: For the How to Play and Mechanics Explanation section, Give it its own Icon and make it minimizable, have it as a modal that is clickable by the user in order to prompt a pop-up instead of it constantly being visible. For the theme switch section, give it its own area on the left side. For the risk board, add the icons associated with the conditions. Include a settings bar that allows the user to change the theme and volume of the game. Remove the text underneath each symbol of the reel. Universal Icons for specific case point combinations, as an example the Cherry, Diamond and Lucky 7 symbols are shared across all themes. Change the color of "Theme Slot Cabinet" so that it is more visible. Change the music based off of the given theme that is currently selected. Ensure that the theme is not 12 notes repeated constantly.
+
+## Note on Iteration
+
+Even though this plan is written in 3 steps for clarity (same as our PPT), our real development used 20 prompt runs and iterative refinements recorded in the AI logs.
