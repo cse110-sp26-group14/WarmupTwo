@@ -22,6 +22,28 @@ AI Model: Codex 4.5 High
 
 During our research phase, we focused on identifying a target audience and understanding what features would create a more engaging and sustainable slot machine experience. We chose to prioritize casual players, users seeking relaxation, utilitarian players, and social building groups. These users are generally not looking for high-risk gambling mechanics, but instead prefer accessible, low-pressure, and enjoyable gameplay experiences. Our research highlights the importance of creating a low-risk, visually engaging, progression-driven, and socially interactive experience tailored to casual and relaxed players, rather than focusing on traditional high-risk gambling dynamics.
 
+## User Personas
+### Timmy (Casual Player)
+* **Age:** 20 (Fresh Graduate/Employed)
+* **Goals:** Quick gameplay, fun casino nights, and simple rules.
+* **Frustrations:** Overly complex interfaces and feature bloat.
+* **Behavior:** Plays short sessions; demands fast feedback and simple controls.
+
+### Larry (The Educator)
+* **Age:** 55 (English Teacher in China)
+* **Goals:** Uses the slot machine for classroom points and team-building activities.
+* **Wants:** Clear rules and easy student participation.
+* **Constraints:** No real money or gambling; must comply with local regulations.
+
+---
+
+## User Stories
+* **Teacher:** I want to reward student groups with slot points so class is more exciting.
+* **Casual Senior:** I want flashy, clear feedback on wins and losses so I can track my chances.
+* **Socialite:** I want accessible mobile excitement to share with friends during hangouts.
+* **Student:** I want daily rewards and bonuses to maintain my sense of progress.
+* **Subsidized User:** I want to turn free credits into personal earnings to reduce "spender's guilt."
+
 ## **Domain/User Insights**
 
 Who are we favoring: 
